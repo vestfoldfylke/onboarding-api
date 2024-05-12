@@ -1,15 +1,20 @@
 const { app } = require('@azure/functions')
-const { resetPassword, getUserByExtensionAttributeSsn } = require('../call-graph')
+const { resetPassword, getUserByExtensionAttributeSsn, getUserByCustomSecurityAttributeSsn } = require('../call-graph')
 const { logger, logConfig } = require('@vtfk/logger')
 const { getStateCache } = require('../state-cache')
 const { getIdPortenClient } = require('../idporten-client')
 const { IDPORTEN, DEMO_MODE } = require('../../config')
 const { getKrrPerson } = require('../krr')
-const { default: axios } = require('axios')
 const { sendSms } = require('../sms')
+const { createLogEntry, insertLogEntry, updateLogEntry } = require('../logEntry')
+const { createStat } = require('../stats')
 
 const maskSsn = (ssn) => {
   return `${ssn.substring(0,6)}*****` // 123456*****
+}
+
+const maskPhoneNumber = (phoneNumber) => {
+  return `+${phoneNumber.substring(0,2)} *****${phoneNumber.substring(7)}` // +47 *****682
 }
 
 const fixPhoneNumber = (phoneNumber) => {
@@ -20,36 +25,68 @@ const fixPhoneNumber = (phoneNumber) => {
   return fixedPhoneNumber
 }
 
+/**
+ * 
+ * @param {Object} error
+ * @param {('idPorten'|'entraId'|'krr'|'resetPassword'|'sms'|'logout'|'changedPassword'|'mfa')} error.jobName
+ * @param {string} [error.message]
+ * @param {string} [error.status]
+ * @param {string} error.jobName
+ * @param {Object} error.logEntry
+ * @param {import('mongodb').ObjectId} error.logEntryId 
+ * @param {Error} error.error
+ * 
+ * @returns 
+ */
+const handleError = async (error, context) => {
+  if (!error.error) throw new Error('Missing required parameter "error.error"')
+  if (!error.logEntry) throw new Error('Missing required parameter "error.logEntry"')
+  if (!error.logEntryId) throw new Error('Missing required parameter "error.logEntryId"')
+  if (!error.jobName) throw new Error('Missing required parameter "error.jobName"')  
+  if (!error.status) error.status = 500
+  if (!error.message) error.message = `Failed when running job "${jobName}"`
+  const errorData = error.response?.data || error.stack || error.toString()
+  logger('error', [error.message, errorData], context)
+  logEntry.result = 'failed'
+  logEntry.message = error.message
+  logEntry[jobName].result = {
+    status: 'failed',
+    message: errorData
+  }
+  await updateLogEntry(logEntryId, logEntry)
+  return { status: error.status, jsonBody: { message: error.message, data: errorData } }
+}
+
 const stateCache = getStateCache()
 
 app.http('ResetPassword', {
   methods: ['POST'],
-  authLevel: 'anonymous',
+  authLevel: 'function',
   handler: async (request, context) => {
     // Validate request body
     const { code, iss, state } = await request.json()
     if (!(code && iss && state)) {
-      logger('warn', ['Someone called ResetPassword without code, iss, and state in body - is someone trying to hack us?'])
+      logger('warn', ['Someone called ResetPassword without code, iss, and state in body - is someone trying to hack us?'], context)
       return { status: 400, jsonBody: { message: 'Du har glemt state og iss og code i body da' } }
     }
 
     // Verify type as well, just for extra credits
     if ([code, iss, state].some(param => typeof param !== 'string')) {
-      logger('warn', ['Someone called ResetPassword without code, iss, and state as strings - is someone trying to hack us?'])
+      logger('warn', ['Someone called ResetPassword without code, iss, and state as strings - is someone trying to hack us?'], context)
       return { status: 400, jsonBody: { message: 'Du har glemt at state, iss, og code skal være string...' } }
     }
 
     // Check that state exist in cache (originates from authorization)
     const checks = stateCache.get(state)
     if (!checks) {
-      logger('warn', ['The state sent by user does not match any state in state cache - is someone trying to be smart?'])
+      logger('warn', ['The state sent by user does not match any state in state cache - is someone trying to be smart?'], context)
       return { status: 500, jsonBody: { message: 'Fant ingen startet pålogging med denne staten - har du venta for lenge?' } }
     }
 
     // Check state param for userType (startswith)
     const userType = state.startsWith('ansatt') ? 'ansatt' : state.startsWith('elev') ? 'elev' : null
     if (!userType) {
-      logger('warn', ['The state sent by user does not start with "ansatt" or "elev", either someone is klussing, or we developers are idiots (we are anyways..)'])
+      logger('warn', ['The state sent by user does not start with "ansatt" or "elev", either someone is klussing, or we developers are idiots (we are anyways..)'], context)
       return { status: 400, jsonBody: { message: 'Hva slags state er det du har fått til å sende inn? Den er ikke gyldig hvertfall' } }
     }
 
@@ -57,6 +94,7 @@ app.http('ResetPassword', {
       userType,
       ssn: null,
       maskedSsn: null,
+      id: null,
       userPrincipalName: null,
       displayName: null,
       phoneNumber: null,
@@ -64,7 +102,19 @@ app.http('ResetPassword', {
       logoutUrl: null
     }
 
-    logger('info', ['"state" is ok, "code" and "iss" is present in body, continuing to fetch tokens from ID-porten'])
+    logger('info', ['"state" is ok, "code" and "iss" is present in body, creating log entry in db'], context)
+
+    const logEntry = createLogEntry(context, request, userType)
+
+    let logEntryId
+    try {
+      logEntryId = await insertLogEntry(logEntry)
+    } catch (error) {
+      logger('error', ['Failed when trying to create logEntry in mongodb', error.response?.data || error.stack || error.toString()], context)
+      return { status: 500, jsonBody: { message: 'Failed when trying to save logEntry in database', data: error.response?.data || error.stack || error.toString() } }
+    }
+
+    logger('info', ['Log entry successfully created, continuing to fetch tokens from ID-porten'], context)
 
     // Run callback for authorization - fetches tokens for user, validates the authentication
     let idPortenClient
@@ -79,11 +129,9 @@ app.http('ResetPassword', {
       // Get id token claims
       const idTokenClaims = tokens.claims()
 
-      console.log(idTokenClaims)
-
       // Set user ssn as pid from id token (if not demo)
       if (DEMO_MODE.ENABLED && DEMO_MODE.SSN) {
-        logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_SSN is set, setting user.ssn to DEMO_MODE_SSN'])
+        logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_SSN is set, setting user.ssn to DEMO_MODE_SSN'], context)
         user.ssn = DEMO_MODE.SSN
       } else {
         user.ssn = idTokenClaims.pid // pid in id-token is identity number of user
@@ -94,9 +142,20 @@ app.http('ResetPassword', {
 
       // If tokens are ok - delete state for this request
       stateCache.del(state)
+
+      // Set log entry properties
+      logEntry.idPorten = {
+        pid: idTokenClaims.pid,
+        acr: idTokenClaims.acr,
+        amr: idTokenClaims.amr,
+        result: {
+          status: 'okey-dokey',
+          message: 'Logged in with id-porten'
+        }
+      }
     } catch (error) {
-      logger('error', ['Failed when trying to get tokens from ID-porten', error.response?.data || error.stack || error.toString()])
-      return { status: 500, jsonBody: { message: 'Failed when trying to get tokens from ID-porten', data: error.response?.data || error.stack || error.toString() } }
+      const { status, jsonBody } = await handleError({ error, jobName: 'idPorten', logEntry, logEntryId, message: 'Failed when trying to get tokens from ID-porten', status: 500 })
+      return { status, jsonBody }
     }
 
     // Have ssn - set masked ssn as log prefix
@@ -105,22 +164,36 @@ app.http('ResetPassword', {
     })
 
     // Fetch user from EntraId
-    logger('info', ['ID-porten is okey dokey, trying to fetch user from Entra ID', ])
-    if (user.userType === 'ansatt') {
-      try {
-        const entraUser = await getUserByExtensionAttributeSsn(user.ssn)
-        if (DEMO_MODE.ENABLED && DEMO_MODE.UPN) {
-          logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_UPN is set, setting user.userPrincipalName to DEMO_MODE_UPN'])
-          user.userPrincipalName = DEMO_MODE.UPN
-          user.displayName = 'DEMO-BRUKER'
-        } else {
-          user.userPrincipalName = entraUser.userPrincipalName
-          user.displayName = entraUser.displayName
-        }
-      } catch (error) {
-        logger('error', ['Failed when fetching user from Entra ID', error.response?.data || error.stack])
-        return { status: 500, jsonBody: { message: 'Failed when fetching user from Entra ID', data: error.response?.data || error.stack } }
+    logger('info', ['ID-porten is okey dokey, trying to fetch user from Entra ID'], context)
+    try {
+      let entraUser
+      if (user.userType === 'ansatt') {  
+        entraUser = await getUserByExtensionAttributeSsn(user.ssn)
+      } else if (user.userType === 'elev') {
+        entraUser = await getUserByCustomSecurityAttributeSsn(user.ssn)
       }
+      if (DEMO_MODE.ENABLED && DEMO_MODE.UPN) {
+        logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_UPN is set, setting user.userPrincipalName to DEMO_MODE_UPN'], context)
+        user.id = 'DEMO-ID'
+        user.userPrincipalName = DEMO_MODE.UPN
+        user.displayName = 'DEMO-BRUKER'
+      } else {
+        user.id = entraUser.id
+        user.userPrincipalName = entraUser.userPrincipalName
+        user.displayName = entraUser.displayName
+      }
+      logEntry.entraId = {
+        userPrincipalName: user.userPrincipalName,
+        displayName: user.displayName,
+        id: user.id,
+        result: {
+          status: 'okey-dokey',
+          message: 'Successfully found user in entraId'
+        }
+      }
+    } catch (error) {
+      const { status, jsonBody } = await handleError({ error, jobName: 'entraId', logEntry, logEntryId, message: 'Failed when fetching user from Entra ID', status: 500 })
+      return { status, jsonBody }
     }
 
     if (userType === 'elev') {
@@ -132,78 +205,102 @@ app.http('ResetPassword', {
       prefix: `${user.maskedSsn} - ${user.userPrincipalName}`
     })
 
-    logger('info', ['Entra ID is okey dokey, trying to fetch user from KRR'])
+    logger('info', ['Entra ID is okey dokey, trying to fetch user from KRR'], context)
     // Get user from KRR (kontakt og reservasjonsregisteret)
     try {
       const krrPerson = await getKrrPerson(user.ssn)
       if (!krrPerson.kontaktinformasjon?.mobiltelefonnummer) throw new Error('Found person in KRR, but person has not registered any phone number :(')
       if (DEMO_MODE.ENABLED && DEMO_MODE.PHONE_NUMBER) {
-        logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_PHONE_NUMBER is set, setting user.phoneNumber to DEMO_MODE_PHONE_NUMBER'])
+        logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_PHONE_NUMBER is set, setting user.phoneNumber to DEMO_MODE_PHONE_NUMBER'], context)
         user.phoneNumber = DEMO_MODE.PHONE_NUMBER
       } else {
         user.phoneNumber = krrPerson.kontaktinformasjon.mobiltelefonnummer
       }
+      logEntry.krr = {
+        phoneNumber: user.phoneNumber,
+        result: {
+          status: 'okey-dokey',
+          message: 'Successfully found person and phonenumber in KRR'
+        }
+      }
     } catch (error) {
-      logger('error', ['Failed when fetching KRR info for person', error.response?.data || error.stack])
-      return { status: 500, jsonBody: { message: 'Failed when fetching KRR info for person', data: error.response?.data || error.stack } }
+      const { status, jsonBody } = await handleError({ error, jobName: 'krr', logEntry, logEntryId, message: 'Failed when fetching KRR info for person', status: 500 }, context)
+      return { status, jsonBody }
     }
 
-    logger('info', [`KRR is okey dokey, trying to reset password for user`])
+    logger('info', [`KRR is okey dokey, trying to reset password for user`], context)
     // Reset password for user
     try {
       if (DEMO_MODE.ENABLED && DEMO_MODE.MOCK_RESET_PASSWORD) {
-        logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_MOCK_RESET_PASSWORD is true, will not reset password, simply pretend to do it'])
+        logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_MOCK_RESET_PASSWORD is true, will not reset password, simply pretend to do it'], context)
         user.newPassword = 'Bare et mocke-passord 123, funker itj nogon stans'
       } else {
         const { resetPasswordResponse, newPassword } = await resetPassword(user.userPrincipalName)
         if (resetPasswordResponse.status !== 'succeeded') {
-          logger('error', ['Failed when resetting password', resetPasswordResponse])
+          logger('error', ['Failed when resetting password', resetPasswordResponse], context)
           return { status: 500, jsonBody: resetPasswordResponse }
         }
         user.newPassword = newPassword
       }
+      logEntry.resetPassword = {
+        result: {
+          status: 'okey-dokey',
+          message: 'Successfully reset password for user'
+        }
+      }
     } catch (error) {
-      logger('error', ['Failed when resetting password', error.response?.data || error.stack || error.toString()])
-      return { status: error.response?.status || 500, jsonBody: error.response?.data || error.stack || error.toString() }
+      const { status, jsonBody } = await handleError({ error, jobName: 'resetPassword', logEntry, logEntryId, message: 'Failed when resetting password', status: 500 })
+      return { status, jsonBody }
     }
 
-    logger('info', [`Reset password is okey dokey, sending sms to user`])
+    logger('info', [`Reset password is okey dokey, sending sms to user`], context)
     // Send password on sms
     try {
       const message = user.newPassword
-      const phoneNumber = fixPhoneNumber(user.phoneNumber)
-      await sendSms(phoneNumber, message)
-      logger('info', ['Sent new password on sms to', `****${phoneNumber.substring(6)}`])
+      user.phoneNumber = fixPhoneNumber(user.phoneNumber)
+      await sendSms(user.phoneNumber, message)
+      logEntry.sms = {
+        phoneNumber: user.phoneNumber,
+        result: {
+          status: 'okey-dokey',
+          message: 'Successfully sent sms'
+        }
+      }
+      logger('info', ['Sent new password on sms to', maskPhoneNumber(user.phoneNumber)], context)
     } catch (error) {
-      logger('error', [`Failed when sending sms`, error.response?.data || error.stack])
-      return { status: 500, jsonBody: { message: 'Failed when sending sms', data: error.response?.data || error.stack } }
+      const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Failed when sending sms', status: 500 })
+      return { status, jsonBody }
     }
-
-    // Lagre alt mulig til mongodb - harSatt2faktor: false, byttaPassord: false - nattlig synk som går gjennom og sjekker, og oppdaterer om det trengs
-
-    // Lagre et statistikk element for det som går bra
-
-    // Hvor mange har vært inne å satt passordet - per skole, per userType
-
-    // Hvordan får vi opprettet et element som sier at de BÅDE har satt to faktor, passord, OG logget inn via ID-porten
     
-    // Logout user from id-porten
-    // Run callback for authorization - fetches tokens for user, validates the authentication
+    logger('info', [`Send sms is okey dokey, sending sms to user`], context)
+    // Set logEntry values and save
+    logEntry.finishedTimestamp = new Date().toISOString()
+    logEntry.message = 'Successfully reset password',
+    logEntry.status = 'okey-dokey'
+    logEntry.result = 'Successfully logged in with IO-porten and reset password in Entra ID'
     try {
-      // Get idPorten client
-      const logoutUrl = idPortenClient.endSessionUrl({ state })
-
-      console.log(logoutUrl)
-      user.logoutUrl = logoutUrl
-      // const { data } = await axios.get(logoutUrl) // Dette fungerer ikke....
-      //console.log(data)
+      await updateLogEntry(logEntryId, logEntry)
     } catch (error) {
-      logger('error', ['Failed when trying logout user from ID-porten', error.response?.data || error.stack || error.toString()])
-      return { status: 500, jsonBody: { message: 'Failed when trying logout user from ID-porten', data: error.response?.data || error.stack || error.toString() } }
+      logger('warn', ['Aiaiaia, failed when saving logEntry to mongodb - this one will be lost...', error.response?.data || error.stack || error.toString()], context)      
     }
 
-    return { status: 200, jsonBody: user }
+    // Lagre et statistikk element for det som går bra??
+    try {
+      await createStat(user.id, logEntryId.toString())
+    } catch (error) {
+      logger('warn', ['Aiaiaia, failed when creating statistics element - this one will be lost...', error.response?.data || error.stack || error.toString()], context)      
+    }
 
-    // Skal vi logge ut brukeren uansett hvordan det gikk eller?
+    const response = {
+      displayName: user.displayName,
+      userPrincipalName: user.userPrincipalName,
+      maskedPhoneNumber: maskPhoneNumber(user.phoneNumber)
+    }
+
+    return { status: 200, jsonBody: response }
+
+    // Hvis vi har en knapp for LOGG ut av id-porten - som bare returnerer den lenka man trenger, så er vi jo good?
+
+    // Skal vi logge ut brukeren uansett hvordan det gikk eller, får det itj til - kan evt sende de rett til utlogging etter ferdig - med en state, som kan hente litt stæsj?
   }
 })

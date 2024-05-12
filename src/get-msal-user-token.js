@@ -17,7 +17,7 @@ const getMsalUserToken = async (config) => {
 
   const cachedToken = cache.get(cacheKey)
   if (!config.forceNew && cachedToken) {
-    logger('info', ['getMsalUserToken', 'found valid token in cache, will use that instead of fetching new'])
+    // logger('info', ['getMsalUserToken', 'found valid token in cache, will use that instead of fetching new'])
     return cachedToken.substring(0, cachedToken.length - 2)
   }
 

@@ -2,7 +2,8 @@ module.exports = {
   NODE_ENV: process.env.NODE_ENV || 'production',
   MONGODB: {
     CONNECTION_STRING: process.env.MONGODB_CONNECTION_STRING,
-    DB_NAME: process.env.MONGODB_DB_NAME
+    DB_NAME: process.env.MONGODB_DB_NAME,
+    LOG_COLLECTION: process.env.MONGODB_LOG_COLLECTION
   },
   APPREG: {
     CLIENT_ID: process.env.APPREG_CLIENT_ID,
@@ -33,6 +34,10 @@ module.exports = {
     URL: process.env.SMS_URL,
     KEY: process.env.SMS_KEY,
     SENDER: process.env.SMS_SENDER
+  },
+  STATISTICS: {
+    URL: process.env.STATISTICS_URL,
+    KEY: process.env.STATISTICS_KEY
   },
   DEMO_MODE: {
     ENABLED: (process.env.DEMO_MODE_ENABLED && process.env.DEMO_MODE_ENABLED === 'true') || false,

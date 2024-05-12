@@ -1,7 +1,6 @@
 const { getMsalToken } = require('./get-msal-token')
 const { GRAPH, AUTHENTICATION_ADMINISTRATOR } = require('../config')
 const { default: axios } = require('axios')
-const { logger } = require('@vtfk/logger')
 const { getMsalUserToken } = require('./get-msal-user-token')
 const { generatePassword } = require('./generate-password')
 
@@ -33,20 +32,6 @@ const resetPassword = async (userId) => {
   return { resetPasswordResponse: passwordCheck.data, newPassword: passwordBody.newPassword }
 }
 
-const getUserByCustomSecurityAttributeSsn = async (ssn) => {
-  const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
-  const url = `${GRAPH.URL}/v1.0/users/?$count=true&$select=id,displayName,customSecurityAttributes&$filter=customSecurityAttributes/IDM/SSN eq '${ssn}'`
-  const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${accessToken}`, ConsistencyLevel: 'eventual' } })
-  console.log(data)
-  if (data.value.length > 1) {
-    throw new Error('Found more than one user on ssn, glitch in the matrix. Delete one of the clones.')
-  }
-  if (data.value.length === 0) {
-    throw new Error('No users found on ssn, does person actually exist??')
-  }
-  return data.value[0]
-}
-
 /**
  * @typedef SimpleEntraUser
  * @property {string} id
@@ -60,9 +45,26 @@ const getUserByCustomSecurityAttributeSsn = async (ssn) => {
  * @param {string} ssn 
  * @returns {SimpleEntraUser} simpleEntraUser
  */
+const getUserByCustomSecurityAttributeSsn = async (ssn) => {
+  const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
+  const url = `${GRAPH.URL}/v1.0/users/?$count=true&$select=id,displayName,userPrincipalName,customSecurityAttributes&$filter=customSecurityAttributes/IDM/SSN eq '${ssn}'`
+  const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${accessToken}`, ConsistencyLevel: 'eventual' } })
+  if (data.value.length > 1) {
+    throw new Error('Found more than one user on ssn, glitch in the matrix. Delete one of the clones.')
+  }
+  if (data.value.length === 0) {
+    throw new Error('No users found on ssn, does person actually exist??')
+  }
+  return data.value[0]
+}
+
+/**
+ * 
+ * @param {string} ssn 
+ * @returns {SimpleEntraUser} simpleEntraUser
+ */
 const getUserByExtensionAttributeSsn = async (ssn) => {
   const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
-
   const url = `${GRAPH.URL}/v1.0/users/?$filter=(${GRAPH.SSN_EXTENSION_ATTRIBUTE}+eq+'${ssn}')&$select=id,displayName,userPrincipalName`
   const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${accessToken}` } })
   if (data.value.length > 1) {
@@ -113,7 +115,6 @@ const updatePassword = async (userId, password) => {
       //password
     }
   }
-  logger('info', ['Updating password', url])
   const { status } = await axios.patch(url, passwordBody, { headers: { Authorization: `Bearer ${accessToken}` } })
   return status
 }
@@ -122,7 +123,6 @@ const callGraph = async (method, resource, body) => {
   const validMethods = ['get', 'post', 'patch']
   if (!validMethods.includes(method.toLowerCase())) throw new Error(`Method must be one of: ${validMethods.join(', ')}`)
   const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
-  logger('info', ['Calling graph', method, `${GRAPH.URL}/${resource}`])
   if (body) {
     const { data } = await axios[method.toLowerCase()](`${GRAPH.URL}/${resource}`, body, { headers: { Authorization: `Bearer ${accessToken}` } })
     return data
