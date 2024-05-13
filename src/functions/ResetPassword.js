@@ -45,15 +45,15 @@ const handleError = async (error, context) => {
   if (!error.jobName) throw new Error('Missing required parameter "error.jobName"')  
   if (!error.status) error.status = 500
   if (!error.message) error.message = `Failed when running job "${jobName}"`
-  const errorData = error.response?.data || error.stack || error.toString()
+  const errorData = error.error.response?.data || error.error.stack || error.error.toString()
   logger('error', [error.message, errorData], context)
-  logEntry.result = 'failed'
-  logEntry.message = error.message
-  logEntry[jobName].result = {
+  error.logEntry.result = 'failed'
+  error.logEntry.message = error.message
+  error.logEntry[error.jobName].result = {
     status: 'failed',
     message: errorData
   }
-  await updateLogEntry(logEntryId, logEntry)
+  await updateLogEntry(error.logEntryId, error.logEntry)
   return { status: error.status, jsonBody: { message: error.message, data: errorData } }
 }
 
@@ -154,23 +154,28 @@ app.http('ResetPassword', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'idPorten', logEntry, logEntryId, message: 'Failed when trying to get tokens from ID-porten', status: 500 })
+      const { status, jsonBody } = await handleError({ error, jobName: 'idPorten', logEntry, logEntryId, message: 'Failed when trying to get tokens from ID-porten', status: 500 }, context)
       return { status, jsonBody }
     }
 
     // Have ssn - set masked ssn as log prefix
     logConfig({
-      prefix: user.maskedSsn
+      prefix: `${user.userType} - ${user.maskedSsn} - logEntryId: ${logEntryId}`
     })
 
     // Fetch user from EntraId
     logger('info', ['ID-porten is okey dokey, trying to fetch user from Entra ID'], context)
     try {
       let entraUser
-      if (user.userType === 'ansatt') {  
+      if (user.userType === 'ansatt') {
         entraUser = await getUserByExtensionAttributeSsn(user.ssn)
       } else if (user.userType === 'elev') {
         entraUser = await getUserByCustomSecurityAttributeSsn(user.ssn)
+      }
+      // Hvis ingen bruker returner vi tidlig med beskjed
+      if (!entraUser.id) {
+        logger('warn', ['Could not find entraID user on ssn'])
+        return { status: 200, jsonBody: { hasError: true, message: 'Fant ingen bruker hos oss med ditt fødselsnummer, ta kontakt med servicedesk eller din leder dersom du mener dette er feil.' } }
       }
       if (DEMO_MODE.ENABLED && DEMO_MODE.UPN) {
         logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_UPN is set, setting user.userPrincipalName to DEMO_MODE_UPN'], context)
@@ -192,24 +197,23 @@ app.http('ResetPassword', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'entraId', logEntry, logEntryId, message: 'Failed when fetching user from Entra ID', status: 500 })
+      const { status, jsonBody } = await handleError({ error, jobName: 'entraId', logEntry, logEntryId, message: 'Failed when fetching user from Entra ID', status: 500 }, context)
       return { status, jsonBody }
-    }
-
-    if (userType === 'elev') {
-      console.log('elev - har ikke gjort no enda')
     }
 
     // Have upn - set masked ssn and upn as log prefix
     logConfig({
-      prefix: `${user.maskedSsn} - ${user.userPrincipalName}`
+      prefix: `${user.userType} - ${user.maskedSsn} - logEntryId: ${logEntryId} - ${user.userPrincipalName}`
     })
 
     logger('info', ['Entra ID is okey dokey, trying to fetch user from KRR'], context)
     // Get user from KRR (kontakt og reservasjonsregisteret)
     try {
       const krrPerson = await getKrrPerson(user.ssn)
-      if (!krrPerson.kontaktinformasjon?.mobiltelefonnummer) throw new Error('Found person in KRR, but person has not registered any phone number :(')
+      if (!krrPerson.kontaktinformasjon?.mobiltelefonnummer) {
+        logger('warn', ['Found person in KRR, but person has not registered any phone number :( cannot help it'])
+        return { status: 200, jsonBody: { hasError: true, message: 'Fant ikke telefonnummeret ditt i kontakt- og reservasjonsregisteret, så vi får ikke sendt noe sms :( Ta kontakt med servicedesk.' } }
+      }
       if (DEMO_MODE.ENABLED && DEMO_MODE.PHONE_NUMBER) {
         logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_PHONE_NUMBER is set, setting user.phoneNumber to DEMO_MODE_PHONE_NUMBER'], context)
         user.phoneNumber = DEMO_MODE.PHONE_NUMBER
@@ -235,11 +239,7 @@ app.http('ResetPassword', {
         logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_MOCK_RESET_PASSWORD is true, will not reset password, simply pretend to do it'], context)
         user.newPassword = 'Bare et mocke-passord 123, funker itj nogon stans'
       } else {
-        const { resetPasswordResponse, newPassword } = await resetPassword(user.userPrincipalName)
-        if (resetPasswordResponse.status !== 'succeeded') {
-          logger('error', ['Failed when resetting password', resetPasswordResponse], context)
-          return { status: 500, jsonBody: resetPasswordResponse }
-        }
+        const { newPassword } = await resetPassword(user.userPrincipalName)
         user.newPassword = newPassword
       }
       logEntry.resetPassword = {
@@ -249,7 +249,7 @@ app.http('ResetPassword', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'resetPassword', logEntry, logEntryId, message: 'Failed when resetting password', status: 500 })
+      const { status, jsonBody } = await handleError({ error, jobName: 'resetPassword', logEntry, logEntryId, message: 'Failed when resetting password', status: 500 }, context)
       return { status, jsonBody }
     }
 
@@ -268,7 +268,7 @@ app.http('ResetPassword', {
       }
       logger('info', ['Sent new password on sms to', maskPhoneNumber(user.phoneNumber)], context)
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Failed when sending sms', status: 500 })
+      const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Failed when sending sms', status: 500 }, context)
       return { status, jsonBody }
     }
     

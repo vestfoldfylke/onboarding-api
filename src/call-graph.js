@@ -3,6 +3,7 @@ const { GRAPH, AUTHENTICATION_ADMINISTRATOR } = require('../config')
 const { default: axios } = require('axios')
 const { getMsalUserToken } = require('./get-msal-user-token')
 const { generatePassword } = require('./generate-password')
+const { logger } = require('@vtfk/logger')
 
 const aninopel = 'hahaha, nørd'
 
@@ -25,11 +26,20 @@ const resetPassword = async (userId) => {
   }
   const { headers } = await axios.post(url, passwordBody, { headers: { Authorization: `Bearer ${accessToken}` } })
 
-  await sleep(5000)
-
-  const passwordCheck = await axios.get(headers.location, { headers: { Authorization: `Bearer ${accessToken}` } })
-
-  return { resetPasswordResponse: passwordCheck.data, newPassword: passwordBody.newPassword }
+  let numberOfTries = 5
+  let intervalMs = 5000
+  for (let i=0; i<numberOfTries; i++) {
+    await sleep(intervalMs)
+    const { data } = await axios.get(headers.location, { headers: { Authorization: `Bearer ${accessToken}` } })
+    if (data.status === 'succeeded') {
+      return { newPassword: passwordBody.newPassword }
+    }
+    if (!['notStarted', 'running'].includes(data.status)) {
+      logger('error', ['Failed when resetting password', data])
+      throw new Error(data.statusDetail || 'Feilet ved resetting av passord')
+    }
+  }
+  throw new Error('Brukte for lang tid på resetting av passord, prøv igjen senere')
 }
 
 /**
@@ -53,7 +63,11 @@ const getUserByCustomSecurityAttributeSsn = async (ssn) => {
     throw new Error('Found more than one user on ssn, glitch in the matrix. Delete one of the clones.')
   }
   if (data.value.length === 0) {
-    throw new Error('No users found on ssn, does person actually exist??')
+    return {
+      id: null,
+      userPrincipalName: null,
+      displayName: null
+    }
   }
   return data.value[0]
 }
@@ -71,7 +85,11 @@ const getUserByExtensionAttributeSsn = async (ssn) => {
     throw new Error('Found more than one user on ssn, glitch in the matrix. Delete one of the clones.')
   }
   if (data.value.length === 0) {
-    throw new Error('No users found on ssn, does person actually exist??')
+    return {
+      id: null,
+      userPrincipalName: null,
+      displayName: null
+    }
   }
   return data.value[0]
 }

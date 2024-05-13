@@ -38,7 +38,7 @@ API for å onboarde folk
 - User.Read.All
 - User.ReadWrite.All // Kanskje ittte?
 - UserAuthenticationMethod.ReadWrite.All
-- Enterprise appen MÅ også være USER ADMINISTRATOR!
+- Enterprise appen MÅ også være USER ADMINISTRATOR! (nope trenger ikke lenger)
 - OIOIOI - vi må kjøre ROPC (resource owner password credentials - kun backend), sammen med client secret, service bruker må ha noen roller. Spør Bjørn. https://learn.microsoft.com/en-us/graph/api/authenticationmethod-resetpassword?view=graph-rest-1.0&tabs=http
 
 
@@ -62,5 +62,25 @@ API for å onboarde folk
 - Klient tar i mot og er fornøyd
 
 
+# Rapport ?
+- Hent alle aktive brukere fra graph
+- Hent hele id-porten collection ! Kan vi hente bare de som det har skjedd endringer med?
+- Har vi stort nok minne for å ha alle der? Ja.
+- Da kan vi sammenligne in memory bare, og skrive til mongodb report-collection. Lagrer med user-id som key, og department, company, blablabla
+- Gjør det en gang på natta ellerno
+- Da kan man bruke report-collection til å hente/lese statistikk, samtidig som vi har en fin logg på hva som skjer og hvem som driver med ting
 
 
+# HELT BANEBRYTENDE IDE! (nej)
+- TRIGGER? Trigger er reset passord-knappen.
+- Trigger let gjennom en gang i timen.
+- Hva om vi setter en custom security attribut på alle som HAR satt opp 2-faktor bak id-porten
+- Extensionattributt_idporten - verified: "idporten-level-oid__timestamp"
+- Hent alle som IKKE har satt den, ta med litt company osv
+- Sjekk alle som ikke er fullført i logCollection. Når de er fullført, sett også extension_idporten_verified.
+- Hent alle som ikke har extension_idporten_verified, en gang i timen. Skriv dem til en report-collection.
+
+
+- En fullsynk hver natt
+- En synk som kjører hver time og bare oppdaterer de det faktisk har skjedd no med. Om de ikke eksisiterer (er helt nye / sletta), så får de bare vente pent til nattsynken? Eller addes as we go?
+  - Denne synken er uansett den som sjekker nye oppføringer, og om de har satt passord og mfa.
