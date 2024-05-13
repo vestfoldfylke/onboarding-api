@@ -46,7 +46,7 @@ app.http('LoginUrl', {
             return { status: 200, jsonBody: { loginUrl: authUrl } }  
         } catch (error) {
             logger('error', ['Failed when trying to get id-porten auth url', error.response?.data || error.stack || error.toString()])
-            return { status: 200, jsonBody: { message: 'Failed when trying to get id-porten auth url', data: error.response?.data || error.stack || error.toString() } }
+            return { status: 500, jsonBody: { message: 'Failed when trying to get id-porten auth url', data: error.response?.data || error.stack || error.toString() } }
         }
     }
 })
