@@ -17,7 +17,7 @@ const getIdPortenClient = async () => {
       client_id: IDPORTEN.CLIENT_ID,
       client_secret: IDPORTEN.ClIENT_SECRET,
       redirect_uris: [IDPORTEN.ClIENT_REDIRECT_URI],
-      post_logout_redirect_uris: ['http://localhost:5173'], // HUSK å leggge dett eog i config etterhvert
+      post_logout_redirect_uris: [IDPORTEN.CLIENT_POST_LOGOUT_REDIRECT_URI],
       response_types: ['code'],
       token_endpoint_auth_method: 'client_secret_post'
   })
