@@ -174,7 +174,7 @@ app.http('ResetPassword', {
       }
       // Hvis ingen bruker returner vi tidlig med beskjed
       if (!entraUser.id) {
-        logger('warn', ['Could not find entraID user on ssn'])
+        await handleError({ error: 'Could not find entraID user on ssn', jobName: 'entraId', logEntry, logEntryId, message: 'Could not find entraID user on ssn.', status: 500 }, context)
         return { status: 200, jsonBody: { hasError: true, message: 'Fant ingen bruker hos oss med ditt fødselsnummer, ta kontakt med servicedesk eller din leder dersom du mener dette er feil.' } }
       }
       if (DEMO_MODE.ENABLED && DEMO_MODE.UPN) {
@@ -211,7 +211,7 @@ app.http('ResetPassword', {
     try {
       const krrPerson = await getKrrPerson(user.ssn)
       if (!krrPerson.kontaktinformasjon?.mobiltelefonnummer) {
-        logger('warn', ['Found person in KRR, but person has not registered any phone number :( cannot help it'])
+        await handleError({ error: 'Found person in KRR, but person has not registered any phone number :( cannot help it', jobName: 'entraId', logEntry, logEntryId, message: 'Found person in KRR, but person has not registered any phone number :( cannot help it', status: 500 }, context)
         return { status: 200, jsonBody: { hasError: true, message: 'Fant ikke telefonnummeret ditt i kontakt- og reservasjonsregisteret, så vi får ikke sendt noe sms :( Ta kontakt med servicedesk.' } }
       }
       if (DEMO_MODE.ENABLED && DEMO_MODE.PHONE_NUMBER) {
