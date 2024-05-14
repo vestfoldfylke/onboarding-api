@@ -37,7 +37,7 @@ app.http('LoginUrl', {
                 code_challenge_method: 'S256',
                 nonce,
                 state,
-                acr_values: 'idporten-loa-high'
+                acr_values: userType === 'elev' ? 'idporten-loa-substantial' : 'idporten-loa-high'
             })
     
             stateCache.set(state, { codeVerifier, nonce }, 300)
