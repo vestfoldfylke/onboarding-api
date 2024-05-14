@@ -9,7 +9,7 @@ const { name, version } = require('../package.json')
 const createStat = async (entraIdObjectId, mongodbObjectId) => {
   if (!(entraIdObjectId && mongodbObjectId)) throw new Error('Missing required parameters: entraIdObjectId, mongodbObjectId')
   const payload = {
-    system: 'onbaording',
+    system: 'onboarding',
     engine: `${name} ${version}`,
     company: 'IT',
     description: 'En bruker som har logget på med ID-porten og resatt passordet sitt i EntraId',
