@@ -1,6 +1,6 @@
-const { logger } = require("@vtfk/logger")
-const { MONGODB } = require("../config")
-const { getMongoClient, closeMongoClient } = require("./mongo-client")
+const { logger } = require('@vtfk/logger')
+const { MONGODB } = require('../config')
+const { getMongoClient, closeMongoClient } = require('./mongo-client')
 
 const createLogEntry = (context, request, userType) => {
   return {
@@ -21,7 +21,7 @@ const createLogEntry = (context, request, userType) => {
       acr: null,
       result: {
         status: null,
-        message: null,
+        message: null
       }
     },
     entraId: {
@@ -70,8 +70,8 @@ const createLogEntry = (context, request, userType) => {
 }
 
 /**
- * 
- * @param {Object} logEntry 
+ *
+ * @param {Object} logEntry
  * @returns {import('mongodb').ObjectId}
  */
 const insertLogEntry = async (logEntry) => {
@@ -90,9 +90,9 @@ const insertLogEntry = async (logEntry) => {
 }
 
 /**
- * 
- * @param {import('mongodb').ObjectId} objectId 
- * @param {Object} logEntry 
+ *
+ * @param {import('mongodb').ObjectId} objectId
+ * @param {Object} logEntry
  */
 const updateLogEntry = async (objectId, logEntry, context) => {
   try {

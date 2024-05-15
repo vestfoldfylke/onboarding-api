@@ -1,5 +1,5 @@
-const { default: axios } = require("axios")
-const { KRR } = require("../config")
+const { default: axios } = require('axios')
+const { KRR } = require('../config')
 
 const getKrrPerson = async (ssn) => {
   const { data } = await axios.post(`${KRR.URL}/lookup`, [ssn], { headers: { 'x-functions-key': KRR.KEY } })
@@ -14,7 +14,7 @@ const getKrrPerson = async (ssn) => {
   }
   */
   if (krrPerson.status.toUpperCase() !== 'AKTIV') { // LEGGE INN SJEKK PÅ "status": "IKKE_REGISTRERT" ??? mon tro - det får man om den ikke finnes i KRR
-    throw new Error('Person is not active, or not registered in KRR') 
+    throw new Error('Person is not active, or not registered in KRR')
   }
   return krrPerson
 }

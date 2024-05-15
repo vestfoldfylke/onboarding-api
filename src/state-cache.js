@@ -3,7 +3,7 @@ const NodeCache = require('node-cache')
 let stateCacheInstance = null
 
 /**
- * 
+ *
  * @returns {import('node-cache')} stateCache
  */
 const getStateCache = () => {

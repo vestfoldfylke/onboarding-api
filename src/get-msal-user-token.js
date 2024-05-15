@@ -30,11 +30,11 @@ const getMsalUserToken = async (config) => {
 
   // Create msal application object
   const cca = new msal.ConfidentialClientApplication({ auth: authConfig })
-  
+
   const usernamePasswordRequest = {
     scopes: [config.scope],
     username: AUTHENTICATION_ADMINISTRATOR.USERNAME,
-    password: AUTHENTICATION_ADMINISTRATOR.PASSWORD,
+    password: AUTHENTICATION_ADMINISTRATOR.PASSWORD
   }
 
   const token = await cca.acquireTokenByUsernamePassword(usernamePasswordRequest)

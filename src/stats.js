@@ -4,7 +4,7 @@ const { name, version } = require('../package.json')
 
 /**
  * @param {string} entraIdObjectId
- * 
+ *
  */
 const createStat = async (entraIdObjectId, mongodbObjectId) => {
   if (!(entraIdObjectId && mongodbObjectId)) throw new Error('Missing required parameters: entraIdObjectId, mongodbObjectId')

@@ -10,11 +10,11 @@ const { createLogEntry, insertLogEntry, updateLogEntry } = require('../logEntry'
 const { createStat } = require('../stats')
 
 const maskSsn = (ssn) => {
-  return `${ssn.substring(0,6)}*****` // 123456*****
+  return `${ssn.substring(0, 6)}*****` // 123456*****
 }
 
 const maskPhoneNumber = (phoneNumber) => {
-  return `+${phoneNumber.substring(0,2)} *****${phoneNumber.substring(7)}` // +47 *****682
+  return `+${phoneNumber.substring(0, 2)} *****${phoneNumber.substring(7)}` // +47 *****682
 }
 
 const fixPhoneNumber = (phoneNumber) => {
@@ -26,25 +26,25 @@ const fixPhoneNumber = (phoneNumber) => {
 }
 
 /**
- * 
+ *
  * @param {Object} error
  * @param {('idPorten'|'entraId'|'krr'|'resetPassword'|'sms'|'logout'|'changedPassword'|'mfa')} error.jobName
  * @param {string} [error.message]
  * @param {string} [error.status]
  * @param {string} error.jobName
  * @param {Object} error.logEntry
- * @param {import('mongodb').ObjectId} error.logEntryId 
+ * @param {import('mongodb').ObjectId} error.logEntryId
  * @param {Error} error.error
- * 
- * @returns 
+ *
+ * @returns
  */
 const handleError = async (error, context) => {
   if (!error.error) throw new Error('Missing required parameter "error.error"')
   if (!error.logEntry) throw new Error('Missing required parameter "error.logEntry"')
   if (!error.logEntryId) throw new Error('Missing required parameter "error.logEntryId"')
-  if (!error.jobName) throw new Error('Missing required parameter "error.jobName"')  
+  if (!error.jobName) throw new Error('Missing required parameter "error.jobName"')
   if (!error.status) error.status = 500
-  if (!error.message) error.message = `Failed when running job "${jobName}"`
+  if (!error.message) error.message = `Failed when running job "${error.jobName}"`
   const errorData = error.error.response?.data || error.error.stack || error.error.toString()
   logger('error', [error.message, errorData], context)
   error.logEntry.status = 'failed'
@@ -124,7 +124,7 @@ app.http('ResetPassword', {
     try {
       // Get idPorten client
       idPortenClient = await getIdPortenClient()
-      
+
       // Fetch tokens. Verifies code_verifier, state, and nonce
       tokens = await idPortenClient.callback(IDPORTEN.ClIENT_REDIRECT_URI, { code, iss, state }, { code_verifier: checks.codeVerifier, nonce: checks.nonce, state })
 
@@ -234,7 +234,7 @@ app.http('ResetPassword', {
       return { status, jsonBody }
     }
 
-    logger('info', [`KRR is okey dokey, trying to reset password for user`], context)
+    logger('info', ['KRR is okey dokey, trying to reset password for user'], context)
     // Reset password for user
     try {
       if (DEMO_MODE.ENABLED && DEMO_MODE.MOCK_RESET_PASSWORD) {
@@ -255,7 +255,7 @@ app.http('ResetPassword', {
       return { status, jsonBody }
     }
 
-    logger('info', [`Reset password is okey dokey, sending sms to user`], context)
+    logger('info', ['Reset password is okey dokey, sending sms to user'], context)
     // Send password on sms
     try {
       const message = user.newPassword
@@ -273,25 +273,25 @@ app.http('ResetPassword', {
       const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Failed when sending sms', status: 500 }, context)
       return { status, jsonBody }
     }
-    
-    logger('info', [`Send sms is okey dokey, sending sms to user`], context)
+
+    logger('info', ['Send sms is okey dokey, sending sms to user'], context)
     // Set logEntry values and save
     logEntry.successful = true
     logEntry.finishedTimestamp = new Date().toISOString()
-    logEntry.message = 'Successfully reset password',
+    logEntry.message = 'Successfully reset password'
     logEntry.status = 'okey-dokey'
     logEntry.result = 'Successfully logged in with IO-porten and reset password in Entra ID'
     try {
       await updateLogEntry(logEntryId, logEntry)
     } catch (error) {
-      logger('warn', ['Aiaiaia, failed when saving logEntry to mongodb - this one will be lost...', error.response?.data || error.stack || error.toString()], context)      
+      logger('warn', ['Aiaiaia, failed when saving logEntry to mongodb - this one will be lost...', error.response?.data || error.stack || error.toString()], context)
     }
 
     // Lagre et statistikk element for det som går bra??
     try {
       await createStat(user.id, logEntryId.toString())
     } catch (error) {
-      logger('warn', ['Aiaiaia, failed when creating statistics element - this one will be lost...', error.response?.data || error.stack || error.toString()], context)      
+      logger('warn', ['Aiaiaia, failed when creating statistics element - this one will be lost...', error.response?.data || error.stack || error.toString()], context)
     }
 
     const response = {

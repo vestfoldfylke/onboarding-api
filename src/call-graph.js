@@ -21,9 +21,9 @@ const resetPassword = async (userId) => {
   }
   const { headers } = await axios.post(url, passwordBody, { headers: { Authorization: `Bearer ${accessToken}` } })
 
-  let numberOfTries = 5
-  let intervalMs = 5000
-  for (let i=0; i<numberOfTries; i++) {
+  const numberOfTries = 5
+  const intervalMs = 5000
+  for (let i = 0; i < numberOfTries; i++) {
     await sleep(intervalMs)
     const { data } = await axios.get(headers.location, { headers: { Authorization: `Bearer ${accessToken}` } })
     if (data.status === 'succeeded') {
@@ -42,12 +42,12 @@ const resetPassword = async (userId) => {
  * @property {string} id
  * @property {string} userPrincipalName
  * @property {string} displayName
- * 
+ *
  */
 
 /**
- * 
- * @param {string} ssn 
+ *
+ * @param {string} ssn
  * @returns {SimpleEntraUser} simpleEntraUser
  */
 const getUserByCustomSecurityAttributeSsn = async (ssn) => {
@@ -68,8 +68,8 @@ const getUserByCustomSecurityAttributeSsn = async (ssn) => {
 }
 
 /**
- * 
- * @param {string} ssn 
+ *
+ * @param {string} ssn
  * @returns {SimpleEntraUser} simpleEntraUser
  */
 const getUserByExtensionAttributeSsn = async (ssn) => {
@@ -108,7 +108,7 @@ const getUserByExtensionAttributeSsn = async (ssn) => {
  */
 
 /**
- * 
+ *
  * @returns {EntraUsers} employees
  */
 const getAllEmployees = async () => {
@@ -133,7 +133,7 @@ const getAllEmployees = async () => {
 }
 
 /**
- * 
+ *
  * @returns {EntraUsers} students
  */
 const getAllStudents = async () => {
@@ -201,6 +201,5 @@ const updatePassword = async (userId, password) => {
   return status
 }
 */
-
 
 module.exports = { getUserByCustomSecurityAttributeSsn, getUserByExtensionAttributeSsn, resetPassword, getAllEmployees, getAllStudents }

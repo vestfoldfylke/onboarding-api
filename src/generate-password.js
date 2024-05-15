@@ -1,14 +1,14 @@
 const generatePassword = () => {
-  const letters = 'abcdefghijklmnopqrstuvwxyz'
+  // const letters = 'abcdefghijklmnopqrstuvwxyz'
   const vocals = 'aeiouy'
-  const consonants = "bcdfghjklmnpqrstvwxz"
+  const consonants = 'bcdfghjklmnpqrstvwxz'
   const numbers = '123456789'
-  const specialCharacters = '_!-'
+  // const specialCharacters = '_!-'
   let password = ''
   // First random letter uppercase
   {
     const randomInt = Math.floor(Math.random() * consonants.length)
-    password += consonants.charAt(randomInt).toUpperCase()  
+    password += consonants.charAt(randomInt).toUpperCase()
   }
 
   // Then 10 random letters lowercase (annahver vocal konsonant)
@@ -30,7 +30,7 @@ const generatePassword = () => {
   // Then random special character
   {
     const randomInt = Math.floor(Math.random() * specialCharacters.length)
-    password += specialCharacters.charAt(randomInt).toUpperCase()  
+    password += specialCharacters.charAt(randomInt).toUpperCase()
   }
   */
   return password
@@ -39,7 +39,7 @@ const generatePassword = () => {
 const generateWord = (numberOfLetters = 5) => {
   // Common letter selection
   const vocalSelection = 'aeiouy'
-  const consonantSelection = "bcdfghjklmnprstvz"
+  const consonantSelection = 'bcdfghjklmnprstvz'
 
   // Double chances
   const doubleChanceVocals = 'eaio'
@@ -60,7 +60,7 @@ const generateWord = (numberOfLetters = 5) => {
   const canHaveJAfter = 'bfgkp' // bj
 
   // Specific consonant that can follow up other consonants (MUST HAVE at least two letters already)
-  const canHaveSAfter = 'fgjklmnprtv' // fs  
+  const canHaveSAfter = 'fgjklmnprtv' // fs
   const canHaveTAfter = 'cfgklnrsz' // ct
   const canHaveNAfter = 'gklmprstvz' // gn
 
@@ -71,7 +71,7 @@ const generateWord = (numberOfLetters = 5) => {
   const canHaveIAfter = 'aeo'
 
   let word = ''
-  
+
   let forceOppositeType = false
   while (word.length < numberOfLetters) {
     if (word.length === 0) { // First letter simply take uppercase random letter
@@ -82,7 +82,7 @@ const generateWord = (numberOfLetters = 5) => {
       word += letter.toUpperCase()
       continue
     }
-    const previousLetter = word.charAt(word.length-1).toLowerCase()
+    const previousLetter = word.charAt(word.length - 1).toLowerCase()
     if (forceOppositeType) { // If we force opposite and previous was consonant we use vocal, and vice versa
       const lettersToUse = vocals.includes(previousLetter) ? consonants : vocals
       const randomInt = Math.floor(Math.random() * lettersToUse.length)
@@ -103,13 +103,13 @@ const generateWord = (numberOfLetters = 5) => {
       }
     }
     if (canHaveIAfter.includes(previousLetter)) possibleLetters += 'i'
-    if (word.length !== numberOfLetters-1) { // Don't end on one of these possibilities
+    if (word.length !== numberOfLetters - 1) { // Don't end on one of these possibilities
       if (canHaveRAfter.includes(previousLetter)) possibleLetters += 'r'
       if (canHaveLAfter.includes(previousLetter)) possibleLetters += 'l'
       if (canHaveJAfter.includes(previousLetter)) possibleLetters += 'j'
       if (previousLetter === 's') possibleLetters += canBeAfterS
     }
-    if (word.length > 2) {  // We must have at least one vocal
+    if (word.length > 2) { // We must have at least one vocal
       if (canHaveSAfter.includes(previousLetter)) possibleLetters += 's'
       if (canHaveTAfter.includes(previousLetter)) possibleLetters += 't'
       if (canHaveNAfter.includes(previousLetter)) possibleLetters += 'n'
@@ -140,7 +140,7 @@ const generateRandomNumber = (numberOfDigits) => {
     const randomInt = Math.floor(Math.random() * numberSelection.length)
     numbers += numberSelection.charAt(randomInt)
   }
-  
+
   return numbers
 }
 
@@ -155,7 +155,6 @@ const generateFriendlyPassword = () => {
   const password = `${firstWord}-${secondWord}-${number}`
   return password
 }
-
 
 module.exports = { generatePassword, generateFriendlyPassword }
 
@@ -184,5 +183,3 @@ for (let i = 0; i < 100000; i++) {
 console.log('duplicates', duplicates)
 console.log('done')
 */
-
-
