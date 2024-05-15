@@ -3,7 +3,8 @@ module.exports = {
   MONGODB: {
     CONNECTION_STRING: process.env.MONGODB_CONNECTION_STRING,
     DB_NAME: process.env.MONGODB_DB_NAME,
-    LOG_COLLECTION: process.env.MONGODB_LOG_COLLECTION
+    LOG_COLLECTION: process.env.MONGODB_LOG_COLLECTION,
+    USERS_COLLECTION: process.env.MONGODB_USERS_COLLECTION
   },
   APPREG: {
     CLIENT_ID: process.env.APPREG_CLIENT_ID,
@@ -17,6 +18,8 @@ module.exports = {
   },
   GRAPH: {
     SSN_EXTENSION_ATTRIBUTE: process.env.GRAPH_SSN_EXTENSION_ATTRIBUTE,
+    EMPLOYEE_UPN_SUFFIX: process.env.GRAPH_EMPLOYEE_UPN_SUFFIX,
+    STUDENT_UPN_SUFFIX: process.env.GRAPH_STUDENT_UPN_SUFFIX,
     SCOPE: process.env.GRAPH_SCOPE || 'https://graph.microsoft.com/.default',
     URL: process.env.GRAPH_URL || 'https://graph.microsoft.com'
   },

@@ -2,7 +2,7 @@ const { getMsalToken } = require('./get-msal-token')
 const { GRAPH, AUTHENTICATION_ADMINISTRATOR } = require('../config')
 const { default: axios } = require('axios')
 const { getMsalUserToken } = require('./get-msal-user-token')
-const { generatePassword } = require('./generate-password')
+const { generatePassword, generateFriendlyPassword } = require('./generate-password')
 const { logger } = require('@vtfk/logger')
 
 const aninopel = 'hahaha, nørd'
@@ -13,16 +13,11 @@ const sleep = (ms) => {
   })
 }
 
-const callGraphUserContext = async () => {
-  const accessToken = await getMsalUserToken({ scope: AUTHENTICATION_ADMINISTRATOR.SCOPE })
-  return accessToken
-}
-
 const resetPassword = async (userId) => {
   const accessToken = await getMsalUserToken({ scope: AUTHENTICATION_ADMINISTRATOR.SCOPE })
   const url = `${GRAPH.URL}/v1.0/users/${userId}/authentication/methods/28c10230-6103-485e-b985-444c60001490/resetPassword`
   const passwordBody = {
-    newPassword: generatePassword()
+    newPassword: generateFriendlyPassword()
   }
   const { headers } = await axios.post(url, passwordBody, { headers: { Authorization: `Bearer ${accessToken}` } })
 
@@ -94,6 +89,75 @@ const getUserByExtensionAttributeSsn = async (ssn) => {
   return data.value[0]
 }
 
+/**
+ * @typedef EntraUser
+ * @property {string} id
+ * @property {string} accountEnabled
+ * @property {string} userPrincipalName
+ * @property {string} displayName
+ * @property {string} jobTitle
+ * @property {string} state
+ * @property {string} department
+ * @property {string} companyName
+ */
+
+/**
+ * @typedef EntraUsers
+ * @property {number} count
+ * @property {EntraUser[]} value
+ */
+
+/**
+ * 
+ * @returns {EntraUsers} employees
+ */
+const getAllEmployees = async () => {
+  const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
+  let url = `${GRAPH.URL}/v1.0/users/?$select=id,accountEnabled,displayName,userPrincipalName,jobTitle,state,department,companyName&$filter=onPremisesExtensionAttributes/extensionAttribute9 ne null and endsWith(userPrincipalName, '${GRAPH.EMPLOYEE_UPN_SUFFIX}')&$count=true&$top=999` // må ha med et filter som sier at du er vanlig ansat, kan bruke onPremisesDistinguishedName contains VFYLKE, om endswith suffix ikke fungerer bra nok
+  let finished = false
+  const result = {
+    count: 0,
+    value: []
+  }
+  let page = 0
+  while (!finished) {
+    const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${accessToken}`, ConsistencyLevel: 'eventual' } })
+    logger('info', ['getAllEmployees', `Got ${data.value.length} elements from page ${page}, will check for more`])
+    finished = data['@odata.nextLink'] === undefined
+    url = data['@odata.nextLink']
+    result.value = result.value.concat(data.value)
+    page++
+  }
+  result.count = result.value.length
+  return result
+}
+
+/**
+ * 
+ * @returns {EntraUsers} students
+ */
+const getAllStudents = async () => {
+  const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
+  let url = `${GRAPH.URL}/v1.0/users/?$select=id,accountEnabled,displayName,userPrincipalName,jobTitle,state,department,companyName&$filter=endsWith(userPrincipalName, '${GRAPH.STUDENT_UPN_SUFFIX}')&$count=true&$top=999`
+  let finished = false
+  const result = {
+    count: 0,
+    value: []
+  }
+  let page = 0
+  while (!finished) {
+    const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${accessToken}`, ConsistencyLevel: 'eventual' } })
+    logger('info', ['getAllStudents', `Got ${data.value.length} elements from page ${page}, will check for more`])
+    finished = data['@odata.nextLink'] === undefined
+    url = data['@odata.nextLink']
+    result.value = result.value.concat(data.value)
+    page++
+  }
+  result.count = result.value.length
+  return result
+}
+
+/*
 const createTAP = async (userId) => {
   const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
   const url = `${GRAPH.URL}/v1.0/users/${userId}/authentication/temporaryAccessPassMethods`
@@ -136,17 +200,7 @@ const updatePassword = async (userId, password) => {
   const { status } = await axios.patch(url, passwordBody, { headers: { Authorization: `Bearer ${accessToken}` } })
   return status
 }
+*/
 
-const callGraph = async (method, resource, body) => {
-  const validMethods = ['get', 'post', 'patch']
-  if (!validMethods.includes(method.toLowerCase())) throw new Error(`Method must be one of: ${validMethods.join(', ')}`)
-  const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
-  if (body) {
-    const { data } = await axios[method.toLowerCase()](`${GRAPH.URL}/${resource}`, body, { headers: { Authorization: `Bearer ${accessToken}` } })
-    return data
-  }
-  const { data } = await axios[method.toLowerCase()](`${GRAPH.URL}/${resource}`, { headers: { Authorization: `Bearer ${accessToken}` } })
-  return data
-}
 
-module.exports = { callGraph, getUserByCustomSecurityAttributeSsn, getUserByExtensionAttributeSsn, createTAP, updatePassword, getTAP, deleteTAP, callGraphUserContext, resetPassword }
+module.exports = { getUserByCustomSecurityAttributeSsn, getUserByExtensionAttributeSsn, resetPassword, getAllEmployees, getAllStudents }

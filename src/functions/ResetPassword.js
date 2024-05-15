@@ -47,7 +47,9 @@ const handleError = async (error, context) => {
   if (!error.message) error.message = `Failed when running job "${jobName}"`
   const errorData = error.error.response?.data || error.error.stack || error.error.toString()
   logger('error', [error.message, errorData], context)
-  error.logEntry.result = 'failed'
+  error.logEntry.status = 'failed'
+  error.logEntry.finishedTimestamp = new Date().toISOString()
+  error.logEntry.result = error.message
   error.logEntry.message = error.message
   error.logEntry[error.jobName].result = {
     status: 'failed',
@@ -197,7 +199,7 @@ app.http('ResetPassword', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'entraId', logEntry, logEntryId, message: 'Failed when fetching user from Entra ID', status: 500 }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'entraId', logEntry, logEntryId, message: 'Feilet ved henting av bruker - prøv igjen senere, eller kontakt servicesk', status: 500 }, context)
       return { status, jsonBody }
     }
 
@@ -274,6 +276,7 @@ app.http('ResetPassword', {
     
     logger('info', [`Send sms is okey dokey, sending sms to user`], context)
     // Set logEntry values and save
+    logEntry.successful = true
     logEntry.finishedTimestamp = new Date().toISOString()
     logEntry.message = 'Successfully reset password',
     logEntry.status = 'okey-dokey'

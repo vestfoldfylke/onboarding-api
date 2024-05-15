@@ -4,6 +4,7 @@ const { getMongoClient, closeMongoClient } = require("./mongo-client")
 
 const createLogEntry = (context, request, userType) => {
   return {
+    successful: false,
     status: 'running',
     message: 'running',
     startedTimestamp: new Date().toISOString(),
@@ -27,6 +28,11 @@ const createLogEntry = (context, request, userType) => {
       userPrincipalName: null,
       displayName: null,
       id: null,
+      jobTitle: null,
+      company: null,
+      department: null,
+      extensionAttribute6: null,
+      state: null,
       result: {
         status: null,
         message: null
