@@ -2,7 +2,7 @@ const { getMsalToken } = require('./get-msal-token')
 const { GRAPH, AUTHENTICATION_ADMINISTRATOR } = require('../config')
 const { default: axios } = require('axios')
 const { getMsalUserToken } = require('./get-msal-user-token')
-const { generatePassword, generateFriendlyPassword } = require('./generate-password')
+const { generateFriendlyPassword } = require('./generate-password')
 const { logger } = require('@vtfk/logger')
 
 const aninopel = 'hahaha, nørd'
@@ -35,6 +35,13 @@ const resetPassword = async (userId) => {
     }
   }
   throw new Error('Brukte for lang tid på resetting av passord, prøv igjen senere')
+}
+
+const getAuthenticationMethods = async (userId) => {
+  const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
+  const url = `${GRAPH.URL}/v1.0/users/${userId}/authentication/methods`
+  const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${accessToken}` } })
+  return data
 }
 
 /**
@@ -99,7 +106,10 @@ const getUserByExtensionAttributeSsn = async (ssn) => {
  * @property {string} state
  * @property {string} department
  * @property {string} companyName
+ * @property {Object[]} onPremisesExtensionAttributes
  */
+
+const userSelect = 'id,accountEnabled,displayName,userPrincipalName,jobTitle,state,department,companyName,onPremisesExtensionAttributes'
 
 /**
  * @typedef EntraUsers
@@ -113,7 +123,7 @@ const getUserByExtensionAttributeSsn = async (ssn) => {
  */
 const getAllEmployees = async () => {
   const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
-  let url = `${GRAPH.URL}/v1.0/users/?$select=id,accountEnabled,displayName,userPrincipalName,jobTitle,state,department,companyName&$filter=onPremisesExtensionAttributes/extensionAttribute9 ne null and endsWith(userPrincipalName, '${GRAPH.EMPLOYEE_UPN_SUFFIX}')&$count=true&$top=999` // må ha med et filter som sier at du er vanlig ansat, kan bruke onPremisesDistinguishedName contains VFYLKE, om endswith suffix ikke fungerer bra nok
+  let url = `${GRAPH.URL}/v1.0/users/?$select=${userSelect}&$filter=onPremisesExtensionAttributes/extensionAttribute9 ne null and endsWith(userPrincipalName, '${GRAPH.EMPLOYEE_UPN_SUFFIX}')&$count=true&$top=999` // må ha med et filter som sier at du er vanlig ansat, kan bruke onPremisesDistinguishedName contains VFYLKE, om endswith suffix ikke fungerer bra nok
   let finished = false
   const result = {
     count: 0,
@@ -134,11 +144,23 @@ const getAllEmployees = async () => {
 
 /**
  *
+ * @param {string} userId
+ * @returns {EntraUser}
+ */
+const getEntraUser = async (userId) => {
+  const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
+  const url = `${GRAPH.URL}/v1.0/users/${userId}?$select=${userSelect}`
+  const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${accessToken}` } })
+  return data
+}
+
+/**
+ *
  * @returns {EntraUsers} students
  */
 const getAllStudents = async () => {
   const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
-  let url = `${GRAPH.URL}/v1.0/users/?$select=id,accountEnabled,displayName,userPrincipalName,jobTitle,state,department,companyName&$filter=endsWith(userPrincipalName, '${GRAPH.STUDENT_UPN_SUFFIX}')&$count=true&$top=999`
+  let url = `${GRAPH.URL}/v1.0/users/?$select=${userSelect}&$filter=endsWith(userPrincipalName, '${GRAPH.STUDENT_UPN_SUFFIX}')&$count=true&$top=999`
   let finished = false
   const result = {
     count: 0,
@@ -202,4 +224,4 @@ const updatePassword = async (userId, password) => {
 }
 */
 
-module.exports = { getUserByCustomSecurityAttributeSsn, getUserByExtensionAttributeSsn, resetPassword, getAllEmployees, getAllStudents }
+module.exports = { getUserByCustomSecurityAttributeSsn, getUserByExtensionAttributeSsn, resetPassword, getAllEmployees, getAllStudents, getAuthenticationMethods, getEntraUser }

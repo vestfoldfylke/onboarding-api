@@ -2,9 +2,41 @@ const { logger } = require('@vtfk/logger')
 const { MONGODB } = require('../config')
 const { getMongoClient, closeMongoClient } = require('./mongo-client')
 
+/**
+ * @typedef LogEntry
+ * @property {boolean} successful
+ * @property {boolean} passwordChanged
+ * @property {("running"|"okey-dokey"|"failed")} status
+ * @property {string} message
+ * @property {string} startedTimestamp
+ * @property {string} finishedTimestamp
+ * @property {string} action
+ * @property {string} invocationId
+ * @property {string} ipAddress
+ * @property {string} userAgent
+ * @property {string} userType
+ * @property {string} result
+ * @property {string} userType
+ * @property {Object} idPorten
+ * @property {Object} entraId
+ * @property {Object} krr
+ * @property {Object} resetPassword
+ * @property {Object} sms
+ * @property {Object[]} authenticationMethods
+ */
+
+/**
+ *
+ * @param {*} context
+ * @param {*} request
+ * @param {ansatt | elev} userType
+ * @returns {LogEntry} logEntry
+ */
+
 const createLogEntry = (context, request, userType) => {
   return {
     successful: false,
+    passwordChanged: false,
     status: 'running',
     message: 'running',
     startedTimestamp: new Date().toISOString(),
@@ -28,11 +60,6 @@ const createLogEntry = (context, request, userType) => {
       userPrincipalName: null,
       displayName: null,
       id: null,
-      jobTitle: null,
-      company: null,
-      department: null,
-      extensionAttribute6: null,
-      state: null,
       result: {
         status: null,
         message: null
@@ -58,14 +85,7 @@ const createLogEntry = (context, request, userType) => {
         message: null
       }
     },
-    mfa: { // Pass på i jobben sjekker dette, at den kun sjekker de som faktisk har fått resatt passordet sitt, ikke de som feila før det.
-      setup: null,
-      methods: []
-    },
-    changedPassword: { // Pass på i jobben sjekker dette, at den kun sjekker de som faktisk har fått resatt passordet sitt, ikke de som feila før det.
-      changed: false,
-      timestamp: null
-    }
+    authenticationMethods: []
   }
 }
 

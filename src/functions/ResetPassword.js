@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions')
 const { resetPassword, getUserByExtensionAttributeSsn, getUserByCustomSecurityAttributeSsn } = require('../call-graph')
-const { logger, logConfig } = require('@vtfk/logger')
+const { logger } = require('@vtfk/logger')
 const { getStateCache } = require('../state-cache')
 const { getIdPortenClient } = require('../idporten-client')
 const { IDPORTEN, DEMO_MODE } = require('../../config')
@@ -32,6 +32,7 @@ const fixPhoneNumber = (phoneNumber) => {
  * @param {string} [error.message]
  * @param {string} [error.status]
  * @param {string} error.jobName
+ * @param {string} [error.logPrefix]
  * @param {Object} error.logEntry
  * @param {import('mongodb').ObjectId} error.logEntryId
  * @param {Error} error.error
@@ -44,9 +45,10 @@ const handleError = async (error, context) => {
   if (!error.logEntryId) throw new Error('Missing required parameter "error.logEntryId"')
   if (!error.jobName) throw new Error('Missing required parameter "error.jobName"')
   if (!error.status) error.status = 500
+  if (!error.logPrefix) error.logPrefix = ''
   if (!error.message) error.message = `Failed when running job "${error.jobName}"`
   const errorData = error.error.response?.data || error.error.stack || error.error.toString()
-  logger('error', [error.message, errorData], context)
+  logger('error', [error.logPrefix, error.message, errorData], context)
   error.logEntry.status = 'failed'
   error.logEntry.finishedTimestamp = new Date().toISOString()
   error.logEntry.result = error.message
@@ -161,12 +163,10 @@ app.http('ResetPassword', {
     }
 
     // Have ssn - set masked ssn as log prefix
-    logConfig({
-      prefix: `${user.userType} - ${user.maskedSsn} - logEntryId: ${logEntryId}`
-    })
+    let logPrefix = `${user.userType} - ${user.maskedSsn} - logEntryId: ${logEntryId}`
 
     // Fetch user from EntraId
-    logger('info', ['ID-porten is okey dokey, trying to fetch user from Entra ID'], context)
+    logger('info', [logPrefix, 'ID-porten is okey dokey, trying to fetch user from Entra ID'], context)
     try {
       let entraUser
       if (user.userType === 'ansatt') {
@@ -176,11 +176,11 @@ app.http('ResetPassword', {
       }
       // Hvis ingen bruker returner vi tidlig med beskjed
       if (!entraUser.id) {
-        await handleError({ error: 'Could not find entraID user on ssn', jobName: 'entraId', logEntry, logEntryId, message: 'Could not find entraID user on ssn.', status: 500 }, context)
+        await handleError({ error: 'Could not find entraID user on ssn', jobName: 'entraId', logEntry, logEntryId, message: 'Could not find entraID user on ssn.', status: 500, logPrefix }, context)
         return { status: 200, jsonBody: { hasError: true, message: 'Fant ingen bruker hos oss med ditt fødselsnummer, ta kontakt med servicedesk eller din leder dersom du mener dette er feil.' } }
       }
       if (DEMO_MODE.ENABLED && DEMO_MODE.UPN) {
-        logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_UPN is set, setting user.userPrincipalName to DEMO_MODE_UPN'], context)
+        logger('warn', [logPrefix, 'DEMO_MODE is enabled, and DEMO_MODE_UPN is set, setting user.userPrincipalName to DEMO_MODE_UPN'], context)
         user.id = 'DEMO-ID'
         user.userPrincipalName = DEMO_MODE.UPN
         user.displayName = 'DEMO-BRUKER'
@@ -199,25 +199,22 @@ app.http('ResetPassword', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'entraId', logEntry, logEntryId, message: 'Feilet ved henting av bruker - prøv igjen senere, eller kontakt servicesk', status: 500 }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'entraId', logEntry, logEntryId, message: 'Feilet ved henting av bruker - prøv igjen senere, eller kontakt servicesk', status: 500, logPrefix }, context)
       return { status, jsonBody }
     }
 
-    // Have upn - set masked ssn and upn as log prefix
-    logConfig({
-      prefix: `${user.userType} - ${user.maskedSsn} - logEntryId: ${logEntryId} - ${user.userPrincipalName}`
-    })
+    logPrefix = `${user.userType} - ${user.maskedSsn} - logEntryId: ${logEntryId} - ${user.userPrincipalName}`
 
-    logger('info', ['Entra ID is okey dokey, trying to fetch user from KRR'], context)
+    logger('info', [logPrefix, 'Entra ID is okey dokey, trying to fetch user from KRR'], context)
     // Get user from KRR (kontakt og reservasjonsregisteret)
     try {
       const krrPerson = await getKrrPerson(user.ssn)
       if (!krrPerson.kontaktinformasjon?.mobiltelefonnummer) {
-        await handleError({ error: 'Found person in KRR, but person has not registered any phone number :( cannot help it', jobName: 'entraId', logEntry, logEntryId, message: 'Found person in KRR, but person has not registered any phone number :( cannot help it', status: 500 }, context)
+        await handleError({ error: 'Found person in KRR, but person has not registered any phone number :( cannot help it', jobName: 'entraId', logEntry, logEntryId, message: 'Found person in KRR, but person has not registered any phone number :( cannot help it', status: 500, logPrefix }, context)
         return { status: 200, jsonBody: { hasError: true, message: 'Fant ikke telefonnummeret ditt i kontakt- og reservasjonsregisteret, så vi får ikke sendt noe sms :( Ta kontakt med servicedesk.' } }
       }
       if (DEMO_MODE.ENABLED && DEMO_MODE.PHONE_NUMBER) {
-        logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_PHONE_NUMBER is set, setting user.phoneNumber to DEMO_MODE_PHONE_NUMBER'], context)
+        logger('warn', [logPrefix, 'DEMO_MODE is enabled, and DEMO_MODE_PHONE_NUMBER is set, setting user.phoneNumber to DEMO_MODE_PHONE_NUMBER'], context)
         user.phoneNumber = DEMO_MODE.PHONE_NUMBER
       } else {
         user.phoneNumber = krrPerson.kontaktinformasjon.mobiltelefonnummer
@@ -230,15 +227,15 @@ app.http('ResetPassword', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'krr', logEntry, logEntryId, message: 'Failed when fetching KRR info for person', status: 500 }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'krr', logEntry, logEntryId, message: 'Failed when fetching KRR info for person', status: 500, logPrefix }, context)
       return { status, jsonBody }
     }
 
-    logger('info', ['KRR is okey dokey, trying to reset password for user'], context)
+    logger('info', [logPrefix, 'KRR is okey dokey, trying to reset password for user'], context)
     // Reset password for user
     try {
       if (DEMO_MODE.ENABLED && DEMO_MODE.MOCK_RESET_PASSWORD) {
-        logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_MOCK_RESET_PASSWORD is true, will not reset password, simply pretend to do it'], context)
+        logger('warn', [logPrefix, 'DEMO_MODE is enabled, and DEMO_MODE_MOCK_RESET_PASSWORD is true, will not reset password, simply pretend to do it'], context)
         user.newPassword = 'Bare et mocke-passord 123, funker itj nogon stans'
       } else {
         const { newPassword } = await resetPassword(user.userPrincipalName)
@@ -251,11 +248,11 @@ app.http('ResetPassword', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'resetPassword', logEntry, logEntryId, message: 'Failed when resetting password', status: 500 }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'resetPassword', logEntry, logEntryId, message: 'Failed when resetting password', status: 500, logPrefix }, context)
       return { status, jsonBody }
     }
 
-    logger('info', ['Reset password is okey dokey, sending sms to user'], context)
+    logger('info', [logPrefix, 'Reset password is okey dokey, sending sms to user'], context)
     // Send password on sms
     try {
       const message = user.newPassword
@@ -268,13 +265,13 @@ app.http('ResetPassword', {
           message: 'Successfully sent sms'
         }
       }
-      logger('info', ['Sent new password on sms to', maskPhoneNumber(user.phoneNumber)], context)
+      logger('info', [logPrefix, 'Sent new password on sms to', maskPhoneNumber(user.phoneNumber)], context)
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Failed when sending sms', status: 500 }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Failed when sending sms', status: 500, logPrefix }, context)
       return { status, jsonBody }
     }
 
-    logger('info', ['Send sms is okey dokey, sending sms to user'], context)
+    logger('info', [logPrefix, 'Send sms is okey dokey, sending sms to user'], context)
     // Set logEntry values and save
     logEntry.successful = true
     logEntry.finishedTimestamp = new Date().toISOString()
@@ -284,14 +281,14 @@ app.http('ResetPassword', {
     try {
       await updateLogEntry(logEntryId, logEntry)
     } catch (error) {
-      logger('warn', ['Aiaiaia, failed when saving logEntry to mongodb - this one will be lost...', error.response?.data || error.stack || error.toString()], context)
+      logger('warn', [logPrefix, 'Aiaiaia, failed when saving logEntry to mongodb - this one will be lost...', error.response?.data || error.stack || error.toString()], context)
     }
 
     // Lagre et statistikk element for det som går bra??
     try {
       await createStat(user.id, logEntryId.toString())
     } catch (error) {
-      logger('warn', ['Aiaiaia, failed when creating statistics element - this one will be lost...', error.response?.data || error.stack || error.toString()], context)
+      logger('warn', [logPrefix, 'Aiaiaia, failed when creating statistics element - this one will be lost...', error.response?.data || error.stack || error.toString()], context)
     }
 
     const response = {
@@ -301,9 +298,5 @@ app.http('ResetPassword', {
     }
 
     return { status: 200, jsonBody: response }
-
-    // Hvis vi har en knapp for LOGG ut av id-porten - som bare returnerer den lenka man trenger, så er vi jo good?
-
-    // Skal vi logge ut brukeren uansett hvordan det gikk eller, får det itj til - kan evt sende de rett til utlogging etter ferdig - med en state, som kan hente litt stæsj?
   }
 })
