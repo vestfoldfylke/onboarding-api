@@ -115,7 +115,7 @@ const updateUsers = async (context) => {
   const logCollection = mongoClient.db(MONGODB.DB_NAME).collection(MONGODB.LOG_COLLECTION)
   try {
     await logCollection.createIndex({ successful: 1 }, { background: true })
-    await logCollection.createIndex({ changedPassword: 1 }, { background: true })
+    await logCollection.createIndex({ passwordChanged: 1 }, { background: true })
     await logCollection.createIndex({ finishedTimestamp: 1 }, { background: true })
     await usersCollection.createIndex({ id: 1 }, { background: true })
   } catch (error) {

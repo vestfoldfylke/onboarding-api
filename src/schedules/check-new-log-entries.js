@@ -24,12 +24,12 @@ const checkNewLogEntries = async (context) => {
   /**
    * @type {import('../logEntry').LogEntry[]}
    */
-  const successfulLogEntries = await logCollection.find({ successful: true, changedPassword: false, finishedTimestamp: { $lt: tenMinutesAgo.toISOString() } }).toArray()
+  const successfulLogEntries = await logCollection.find({ successful: true, passwordChanged: false, finishedTimestamp: { $lt: tenMinutesAgo.toISOString() } }).toArray()
   logger('info', [`Found ${successfulLogEntries.length} new log entries to handle`], context)
 
   const checkedUsers = []
   for (const logEntry of successfulLogEntries) {
-    if (logEntry.changedPassword) continue // Already handled (Håndterer ikke egt den under dette?)
+    if (logEntry.passwordChanged) continue // Already handled (Håndterer ikke egt den under dette?)
     if (checkedUsers.includes(logEntry.entraId.id)) continue // Already checked
     const entraUser = logEntry.entraId
 
@@ -69,7 +69,7 @@ const checkNewLogEntries = async (context) => {
     }
 
     // Now we know that the user have changed password, and have mfa methods, we can save stuff
-    latestLogEntry.changedPassword = true
+    latestLogEntry.passwordChanged = true
     latestLogEntry.authenticationMethods = authenticationMethods
 
     logger('info', [logPrefix, 'have changed password and setup mfa, saving data to logEntry and to users collection'], context)
@@ -92,7 +92,7 @@ const checkNewLogEntries = async (context) => {
     // Update logEntries
     logger('info', [logPrefix, `All good in users-collection, updating ${userLogEntries.length} relevant logEntries in log-collection`], context)
     for (const userLogEntry of userLogEntries) {
-      await logCollection.updateOne({ _id: userLogEntry._id }, { $set: { changedPassword: true, authenticationMethods } })
+      await logCollection.updateOne({ _id: userLogEntry._id }, { $set: { passwordChanged: true, authenticationMethods } })
     }
     logger('info', [logPrefix, `Updated ${userLogEntries.length} relevant logEntries in log-collection`], context)
   }

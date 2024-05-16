@@ -28,7 +28,7 @@ const fixPhoneNumber = (phoneNumber) => {
 /**
  *
  * @param {Object} error
- * @param {('idPorten'|'entraId'|'krr'|'resetPassword'|'sms'|'logout'|'changedPassword'|'mfa')} error.jobName
+ * @param {('idPorten'|'entraId'|'krr'|'resetPassword'|'sms')} error.jobName
  * @param {string} [error.message]
  * @param {string} [error.status]
  * @param {string} error.jobName
