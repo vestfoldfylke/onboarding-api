@@ -164,8 +164,9 @@ const pws = generateFriendlyPassword()
 console.log(pws)
 console.log('')
 
-console.log(generateWord2(10))
-console.log(' ')
+// console.log(generateWord(10))
+// console.log(' ')
+
 */
 /*
 const passwords = []

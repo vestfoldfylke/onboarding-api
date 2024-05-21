@@ -17,6 +17,11 @@ API for å onboarde folk
   - Lagrer alt som logEntry greier i mongoDB
   - Returnerer brukernavn, navn og maskert tlf-nr (som sms ble sendt til)
 - Browsern viser så litt info om hva bruker må gjøre videre
+- Bruker må klikke på "trykk her", blir så sendt til enterprise app / ENTRA_CLIENT - som IKKE har MFA-CA-policy på seg (grunnet forferdelig rekkefølge hos Microsoft - vi vil at brukeren må sette nytt passord FØR mfa)
+  - Her må bruker putte inn engangs/togangspassordet - for så å sette seg et nytt passord
+- Deretter blir brukeren redirected tilbake til frontend med code og state, sender over code og state til api her igjen, og blir logga inn i Entra
+- Ved suksess-innlogging blir såååå igjen!! Brukeren redirected, denne gangen til https://portal.office.com, der blir det tvunget på MFA også
+- Så er den stakkars brukeren ferdig
 
 # Full-report
 - TODO
@@ -46,6 +51,30 @@ UserAuthenticationMethod.ReadWrite.All (Trengs kun i prod - der det faktisk skal
 - Browser sender code over til API/ResetPassword
 - Browser får tilbake litt info og er forhåpentligvis fornøyd
 
+
+# DEMO
+```js
+const mockRules = {
+  "12345678910": { // Who should the demo-rules trigger on (idporten ssn)
+    DEMO_SSN: '12345678910', // Optional - else uses pid from idporten
+    DEMO_UPN: 'demomann@demo.no', // Optional - else uses upn connected to ssn
+    DEMO_PHONE_NUMBER: '+4712345678', // Optional - else uses phonenumber from krr connected to 
+    MOCK_RESET_PASSWORD: 'true' // Optional - else actually resets password
+  },
+  '12345678911': { // Add as many as you like
+    DEMO_SSN: '12345678912',
+    DEMO_UPN: 'jorthe@gothtr.no',
+    DEMO_PHONE_NUMBER: '+4787654321',
+    MOCK_RESET_PASSWORD: 'false'
+  }
+}
+
+const escaped = JSON.stringify(JSON.stringify(mockRules))
+
+console.log(escaped)
+
+// Add rule to DEMO_MODE_DEMO_USERS env variable, and set DEMO_MODE_ENABLED to "true" in env variabels
+```
 
 # Rapport ?
 - Hent alle aktive brukere fra graph

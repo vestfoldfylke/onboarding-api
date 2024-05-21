@@ -17,7 +17,7 @@ app.http('LoginUrl', {
   methods: ['GET'],
   authLevel: 'function',
   handler: async (request, context) => {
-    logger('info', ['New request'])
+    logger('info', ['New request for loginurl'])
     const userType = request.query.get('userType')
     if (!userType || !['ansatt', 'elev'].includes(userType)) {
       logger('warn', ['Request does not contain query param "ansatt" eller "elev" :O'])
@@ -37,7 +37,7 @@ app.http('LoginUrl', {
         code_challenge_method: 'S256',
         nonce,
         state,
-        acr_values: userType === 'elev' ? 'idporten-loa-substantial' : 'idporten-loa-high'
+        acr_values: userType === 'elev' ? 'idporten-loa-substantial' : 'idporten-loa-substantial' // idporten-loa-high for kun BankID og commfides
       })
 
       stateCache.set(state, { codeVerifier, nonce }, 300)

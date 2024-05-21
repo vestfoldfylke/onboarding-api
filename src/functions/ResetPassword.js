@@ -106,6 +106,9 @@ app.http('ResetPassword', {
       logoutUrl: null
     }
 
+    // If logged in user has specified DEMO_ACCESS
+    let DEMO_USER_OVERRIDE = null
+
     logger('info', ['"state" is ok, "code" and "iss" is present in body, creating log entry in db'], context)
 
     const logEntry = createLogEntry(context, request, userType)
@@ -133,10 +136,15 @@ app.http('ResetPassword', {
       // Get id token claims
       const idTokenClaims = tokens.claims()
 
+      // Check if we have DEMO_USER_OVERRIDE
+      if (DEMO_MODE.DEMO_USERS[idTokenClaims.pid]) {
+        DEMO_USER_OVERRIDE = DEMO_MODE.DEMO_USERS[idTokenClaims.pid]
+      }
+
       // Set user ssn as pid from id token (if not demo)
-      if (DEMO_MODE.ENABLED && DEMO_MODE.SSN) {
-        logger('warn', ['DEMO_MODE is enabled, and DEMO_MODE_SSN is set, setting user.ssn to DEMO_MODE_SSN'], context)
-        user.ssn = DEMO_MODE.SSN
+      if (DEMO_MODE.ENABLED && DEMO_USER_OVERRIDE?.DEMO_SSN) {
+        logger('warn', ['DEMO_MODE is enabled, and DEMO_USER_OVERRIDE is present on idPorten pid, setting user.ssn to DEMO_USER_OVERRIDE.DEMO_SSN'], context)
+        user.ssn = DEMO_USER_OVERRIDE.DEMO_SSN
       } else {
         user.ssn = idTokenClaims.pid // pid in id-token is identity number of user
       }
@@ -179,10 +187,10 @@ app.http('ResetPassword', {
         await handleError({ error: 'Could not find entraID user on ssn', jobName: 'entraId', logEntry, logEntryId, message: 'Could not find entraID user on ssn.', status: 500, logPrefix }, context)
         return { status: 200, jsonBody: { hasError: true, message: 'Fant ingen bruker hos oss med ditt fødselsnummer, ta kontakt med servicedesk eller din leder dersom du mener dette er feil.' } }
       }
-      if (DEMO_MODE.ENABLED && DEMO_MODE.UPN) {
-        logger('warn', [logPrefix, 'DEMO_MODE is enabled, and DEMO_MODE_UPN is set, setting user.userPrincipalName to DEMO_MODE_UPN'], context)
+      if (DEMO_MODE.ENABLED && DEMO_USER_OVERRIDE?.DEMO_UPN) {
+        logger('warn', [logPrefix, 'DEMO_MODE is enabled, and DEMO_USER_OVERRIDE is present on idPorten pid, setting user.userPrincipalName to DEMO_USER_OVERRIDE.DEMO_UPN'], context)
         user.id = 'DEMO-ID'
-        user.userPrincipalName = DEMO_MODE.UPN
+        user.userPrincipalName = DEMO_USER_OVERRIDE.DEMO_UPN
         user.displayName = 'DEMO-BRUKER'
       } else {
         user.id = entraUser.id
@@ -210,12 +218,12 @@ app.http('ResetPassword', {
     try {
       const krrPerson = await getKrrPerson(user.ssn)
       if (!krrPerson.kontaktinformasjon?.mobiltelefonnummer) {
-        await handleError({ error: 'Found person in KRR, but person has not registered any phone number :( cannot help it', jobName: 'entraId', logEntry, logEntryId, message: 'Found person in KRR, but person has not registered any phone number :( cannot help it', status: 500, logPrefix }, context)
+        await handleError({ error: 'Found person in KRR, but person has not registered any phone number :( cannot help it', jobName: 'entraId', logEntry, logEntryId, message: 'Fant oppføring i kontakt- og reservasjonsregisteret, men ikke et oppført mobilnummer. Ta kontakt med servicedesk.', status: 500, logPrefix }, context)
         return { status: 200, jsonBody: { hasError: true, message: 'Fant ikke telefonnummeret ditt i kontakt- og reservasjonsregisteret, så vi får ikke sendt noe sms :( Ta kontakt med servicedesk.' } }
       }
-      if (DEMO_MODE.ENABLED && DEMO_MODE.PHONE_NUMBER) {
-        logger('warn', [logPrefix, 'DEMO_MODE is enabled, and DEMO_MODE_PHONE_NUMBER is set, setting user.phoneNumber to DEMO_MODE_PHONE_NUMBER'], context)
-        user.phoneNumber = DEMO_MODE.PHONE_NUMBER
+      if (DEMO_MODE.ENABLED && DEMO_USER_OVERRIDE?.DEMO_PHONE_NUMBER) {
+        logger('warn', [logPrefix, 'DEMO_MODE is enabled, and DEMO_USER_OVERRIDE is present on idPorten pid, setting user.phoneNumber to DEMO_USER_OVERRIDE.DEMO_PHONE_NUMBER'], context)
+        user.phoneNumber = DEMO_USER_OVERRIDE?.DEMO_PHONE_NUMBER
       } else {
         user.phoneNumber = krrPerson.kontaktinformasjon.mobiltelefonnummer
       }
@@ -227,15 +235,15 @@ app.http('ResetPassword', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'krr', logEntry, logEntryId, message: 'Failed when fetching KRR info for person', status: 500, logPrefix }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'krr', logEntry, logEntryId, message: 'Feilet ved henting av mobilnummer fra kontakt- og reservasjons-registeret', status: 500, logPrefix }, context)
       return { status, jsonBody }
     }
 
     logger('info', [logPrefix, 'KRR is okey dokey, trying to reset password for user'], context)
     // Reset password for user
     try {
-      if (DEMO_MODE.ENABLED && DEMO_MODE.MOCK_RESET_PASSWORD) {
-        logger('warn', [logPrefix, 'DEMO_MODE is enabled, and DEMO_MODE_MOCK_RESET_PASSWORD is true, will not reset password, simply pretend to do it'], context)
+      if (DEMO_MODE.ENABLED && ((DEMO_USER_OVERRIDE?.MOCK_RESET_PASSWORD === 'true') || (!DEMO_USER_OVERRIDE && DEMO_MODE.GLOBAL_MOCK_RESET_PASSWORD))) {
+        logger('warn', [logPrefix, 'DEMO_MODE is enabled, and DEMO_USER_OVERRIDE.MOCK_RESET_PASSWORD is true or DEMO_USER_OVERRIDE is not present and DEMO_MODE.GLOBAL_MOCK_RESET_PASSWORD is true, will not reset password, simply pretend to do it'], context)
         user.newPassword = 'Bare et mocke-passord 123, funker itj nogon stans'
       } else {
         const { newPassword } = await resetPassword(user.userPrincipalName)
@@ -248,7 +256,7 @@ app.http('ResetPassword', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'resetPassword', logEntry, logEntryId, message: 'Failed when resetting password', status: 500, logPrefix }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'resetPassword', logEntry, logEntryId, message: 'Feilet ved resetting av passord', status: 500, logPrefix }, context)
       return { status, jsonBody }
     }
 
@@ -267,7 +275,7 @@ app.http('ResetPassword', {
       }
       logger('info', [logPrefix, 'Sent new password on sms to', maskPhoneNumber(user.phoneNumber)], context)
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Failed when sending sms', status: 500, logPrefix }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Feilet ved sending av sms - vennligst prøv igjen senere', status: 500, logPrefix }, context)
       return { status, jsonBody }
     }
 
@@ -277,7 +285,7 @@ app.http('ResetPassword', {
     logEntry.finishedTimestamp = new Date().toISOString()
     logEntry.message = 'Successfully reset password'
     logEntry.status = 'okey-dokey'
-    logEntry.result = 'Successfully logged in with IO-porten and reset password in Entra ID'
+    logEntry.result = 'Successfully logged in with ID-porten and reset password in Entra ID'
     try {
       await updateLogEntry(logEntryId, logEntry)
     } catch (error) {

@@ -23,6 +23,14 @@ module.exports = {
     SCOPE: process.env.GRAPH_SCOPE || 'https://graph.microsoft.com/.default',
     URL: process.env.GRAPH_URL || 'https://graph.microsoft.com'
   },
+  ENTRA: {
+    CLIENT_ID: process.env.ENTRA_CLIENT_ID,
+    ClIENT_SECRET: process.env.ENTRA_CLIENT_SECRET,
+    TENANT_ID: process.env.ENTRA_TENANT_ID,
+    ClIENT_REDIRECT_URI: process.env.ENTRA_CLIENT_REDIRECT_URI,
+    CLIENT_POST_LOGOUT_REDIRECT_URI: process.env.ENTRA_CLIENT_POST_LOGOUT_REDIRECT_URI,
+    WELL_KNOWN_ENDPOINT: process.env.ENTRA_WELL_KNOWN_ENDPOINT
+  },
   IDPORTEN: {
     CLIENT_ID: process.env.IDPORTEN_CLIENT_ID,
     ClIENT_SECRET: process.env.IDPORTEN_CLIENT_SECRET,
@@ -45,9 +53,7 @@ module.exports = {
   },
   DEMO_MODE: {
     ENABLED: (process.env.DEMO_MODE_ENABLED && process.env.DEMO_MODE_ENABLED === 'true') || false,
-    SSN: process.env.DEMO_MODE_SSN,
-    UPN: process.env.DEMO_MODE_UPN,
-    PHONE_NUMBER: process.env.DEMO_MODE_PHONE_NUMBER,
-    MOCK_RESET_PASSWORD: (process.env.DEMO_MODE_MOCK_RESET_PASSWORD && process.env.DEMO_MODE_MOCK_RESET_PASSWORD === 'true') || false
+    GLOBAL_MOCK_RESET_PASSWORD: (process.env.DEMO_MODE_GLOBAL_MOCK_RESET_PASSWORD && process.env.DEMO_MODE_GLOBAL_MOCK_RESET_PASSWORD === 'true') || false,
+    DEMO_USERS: (process.env.DEMO_MODE_DEMO_USERS && JSON.parse(process.env.DEMO_MODE_DEMO_USERS)) || false
   }
 }
