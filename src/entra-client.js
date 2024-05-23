@@ -1,24 +1,43 @@
-const { ENTRA } = require('../config')
+const { ENTRA_PWD, ENTRA_MFA } = require('../config')
 const msal = require('@azure/msal-node')
 
-let entraInstance = null
+let entraPwdInstance = null
+let entraMfaInstance = null
 
 /**
  *
  * @returns {import('@azure/msal-node').ConfidentialClientApplication} entraClient
  */
-const getEntraClient = () => {
-  if (entraInstance) return entraInstance
+const getEntraPwdClient = () => {
+  if (entraPwdInstance) return entraPwdInstance
 
-  entraInstance = new msal.ConfidentialClientApplication({
+  entraPwdInstance = new msal.ConfidentialClientApplication({
     auth: {
-      clientId: ENTRA.CLIENT_ID,
-      authority: `https://login.microsoftonline.com/${ENTRA.TENANT_ID}`,
-      clientSecret: ENTRA.ClIENT_SECRET
+      clientId: ENTRA_PWD.CLIENT_ID,
+      authority: `https://login.microsoftonline.com/${ENTRA_PWD.TENANT_ID}`,
+      clientSecret: ENTRA_PWD.ClIENT_SECRET
     }
   })
 
-  return entraInstance
+  return entraPwdInstance
 }
 
-module.exports = { getEntraClient }
+/**
+ *
+ * @returns {import('@azure/msal-node').ConfidentialClientApplication} entraClient
+ */
+const getEntraMfaClient = () => {
+  if (entraMfaInstance) return entraMfaInstance
+
+  entraMfaInstance = new msal.ConfidentialClientApplication({
+    auth: {
+      clientId: ENTRA_MFA.CLIENT_ID,
+      authority: `https://login.microsoftonline.com/${ENTRA_MFA.TENANT_ID}`,
+      clientSecret: ENTRA_MFA.ClIENT_SECRET
+    }
+  })
+
+  return entraMfaInstance
+}
+
+module.exports = { getEntraPwdClient, getEntraMfaClient }

@@ -1,28 +1,13 @@
 const { app } = require('@azure/functions')
-const { resetPassword, getUserByExtensionAttributeSsn, getUserByCustomSecurityAttributeSsn } = require('../call-graph')
+const { getUserByExtensionAttributeSsn, getUserByCustomSecurityAttributeSsn } = require('../call-graph')
 const { logger } = require('@vtfk/logger')
 const { getStateCache } = require('../state-cache')
 const { getIdPortenClient } = require('../idporten-client')
 const { IDPORTEN, DEMO_MODE } = require('../../config')
-const { getKrrPerson } = require('../krr')
-const { sendSms } = require('../sms')
 const { createLogEntry, insertLogEntry, updateLogEntry } = require('../logEntry')
-const { createPwdStat } = require('../stats')
 
 const maskSsn = (ssn) => {
   return `${ssn.substring(0, 6)}*****` // 123456*****
-}
-
-const maskPhoneNumber = (phoneNumber) => {
-  return `+${phoneNumber.substring(0, 2)} *****${phoneNumber.substring(7)}` // +47 *****682
-}
-
-const fixPhoneNumber = (phoneNumber) => {
-  let fixedPhoneNumber = phoneNumber
-  if (fixedPhoneNumber.startsWith('+')) fixedPhoneNumber = fixedPhoneNumber.substring(1)
-  if (fixedPhoneNumber.length === 12 && fixedPhoneNumber.startsWith('00')) fixedPhoneNumber = fixedPhoneNumber.substring(2)
-  if (fixedPhoneNumber.length !== 10) throw new Error(`We cannot send sms to this phonenumber, wrong format: ${phoneNumber}`)
-  return fixedPhoneNumber
 }
 
 /**
@@ -63,20 +48,20 @@ const handleError = async (error, context) => {
 
 const stateCache = getStateCache()
 
-app.http('ResetPassword', {
+app.http('VerifyUser', {
   methods: ['POST'],
   authLevel: 'function',
   handler: async (request, context) => {
     // Validate request body
     const { code, iss, state } = await request.json()
     if (!(code && iss && state)) {
-      logger('warn', ['Someone called ResetPassword without code, iss, and state in body - is someone trying to hack us?'], context)
+      logger('warn', ['Someone called VerifyUser without code, iss, and state in body - is someone trying to hack us?'], context)
       return { status: 400, jsonBody: { message: 'Du har glemt state og iss og code i body da' } }
     }
 
     // Verify type as well, just for extra credits
     if ([code, iss, state].some(param => typeof param !== 'string')) {
-      logger('warn', ['Someone called ResetPassword without code, iss, and state as strings - is someone trying to hack us?'], context)
+      logger('warn', ['Someone called VerifyUser without code, iss, and state as strings - is someone trying to hack us?'], context)
       return { status: 400, jsonBody: { message: 'Du har glemt at state, iss, og code skal være string...' } }
     }
 
@@ -94,7 +79,7 @@ app.http('ResetPassword', {
       return { status: 400, jsonBody: { message: 'Hva slags state er det du har fått til å sende inn? Den er ikke gyldig hvertfall' } }
     }
 
-    const correctAction = state.startsWith(`${userType}resetpassword`)
+    const correctAction = state.startsWith(`${userType}verifyuser`)
     if (!correctAction) {
       logger('warn', ['The state sent by user does not start with correct action after userType, seither someone is klussing, or we developers are idiots (we are anyways..)'], context)
       return { status: 400, jsonBody: { message: 'Hva slags state er det du har fått til å sende inn? Den er ikke gyldig hvertfall' } }
@@ -117,7 +102,7 @@ app.http('ResetPassword', {
 
     logger('info', ['"state" is ok, "code" and "iss" is present in body, creating log entry in db'], context)
 
-    const logEntry = createLogEntry(context, request, userType, 'ResetPassword')
+    const logEntry = createLogEntry(context, request, userType, 'VerifyUser')
 
     let logEntryId
     try {
@@ -219,73 +204,7 @@ app.http('ResetPassword', {
 
     logPrefix = `${user.userType} - ${user.maskedSsn} - logEntryId: ${logEntryId} - ${user.userPrincipalName}`
 
-    logger('info', [logPrefix, 'Entra ID is okey dokey, trying to fetch user from KRR'], context)
-    // Get user from KRR (kontakt og reservasjonsregisteret)
-    try {
-      const krrPerson = await getKrrPerson(user.ssn)
-      if (!krrPerson.kontaktinformasjon?.mobiltelefonnummer) {
-        await handleError({ error: 'Found person in KRR, but person has not registered any phone number :( cannot help it', jobName: 'entraId', logEntry, logEntryId, message: 'Fant oppføring i kontakt- og reservasjonsregisteret, men ikke et oppført mobilnummer. Ta kontakt med servicedesk.', status: 500, logPrefix }, context)
-        return { status: 200, jsonBody: { hasError: true, message: 'Fant ikke telefonnummeret ditt i kontakt- og reservasjonsregisteret, så vi får ikke sendt noe sms :( Ta kontakt med servicedesk.' } }
-      }
-      if (DEMO_MODE.ENABLED && DEMO_USER_OVERRIDE?.DEMO_PHONE_NUMBER) {
-        logger('warn', [logPrefix, 'DEMO_MODE is enabled, and DEMO_USER_OVERRIDE is present on idPorten pid, setting user.phoneNumber to DEMO_USER_OVERRIDE.DEMO_PHONE_NUMBER'], context)
-        user.phoneNumber = DEMO_USER_OVERRIDE?.DEMO_PHONE_NUMBER
-      } else {
-        user.phoneNumber = krrPerson.kontaktinformasjon.mobiltelefonnummer
-      }
-      logEntry.krr = {
-        phoneNumber: user.phoneNumber,
-        result: {
-          status: 'okey-dokey',
-          message: 'Successfully found person and phonenumber in KRR'
-        }
-      }
-    } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'krr', logEntry, logEntryId, message: 'Feilet ved henting av mobilnummer fra kontakt- og reservasjons-registeret', status: 500, logPrefix }, context)
-      return { status, jsonBody }
-    }
-
-    logger('info', [logPrefix, 'KRR is okey dokey, trying to reset password for user'], context)
-    // Reset password for user
-    try {
-      if (DEMO_MODE.ENABLED && ((DEMO_USER_OVERRIDE?.MOCK_RESET_PASSWORD === 'true') || (!DEMO_USER_OVERRIDE && DEMO_MODE.GLOBAL_MOCK_RESET_PASSWORD))) {
-        logger('warn', [logPrefix, 'DEMO_MODE is enabled, and DEMO_USER_OVERRIDE.MOCK_RESET_PASSWORD is true or DEMO_USER_OVERRIDE is not present and DEMO_MODE.GLOBAL_MOCK_RESET_PASSWORD is true, will not reset password, simply pretend to do it'], context)
-        user.newPassword = 'Bare et mocke-passord 123, funker itj nogon stans'
-      } else {
-        const { newPassword } = await resetPassword(user.userPrincipalName)
-        user.newPassword = newPassword
-      }
-      logEntry.resetPassword = {
-        result: {
-          status: 'okey-dokey',
-          message: 'Successfully reset password for user'
-        }
-      }
-    } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'resetPassword', logEntry, logEntryId, message: 'Feilet ved resetting av passord', status: 500, logPrefix }, context)
-      return { status, jsonBody }
-    }
-
-    logger('info', [logPrefix, 'Reset password is okey dokey, sending sms to user'], context)
-    // Send password on sms
-    try {
-      const message = user.newPassword
-      user.phoneNumber = fixPhoneNumber(user.phoneNumber)
-      await sendSms(user.phoneNumber, message)
-      logEntry.sms = {
-        phoneNumber: user.phoneNumber,
-        result: {
-          status: 'okey-dokey',
-          message: 'Successfully sent sms'
-        }
-      }
-      logger('info', [logPrefix, 'Sent new password on sms to', maskPhoneNumber(user.phoneNumber)], context)
-    } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Feilet ved sending av sms - vennligst prøv igjen senere', status: 500, logPrefix }, context)
-      return { status, jsonBody }
-    }
-
-    logger('info', [logPrefix, 'Send sms is okey dokey, saving logEntry'], context)
+    logger('info', [logPrefix, 'EntraId is okey dokey, saving logEntry'], context)
     try {
       await updateLogEntry(logEntryId, logEntry)
     } catch (error) {
@@ -293,18 +212,10 @@ app.http('ResetPassword', {
       return { status, jsonBody }
     }
 
-    // Lagre et statistikk element for det som går bra
-    try {
-      await createPwdStat(user.id, logEntryId.toString())
-    } catch (error) {
-      logger('warn', [logPrefix, 'Aiaiaia, failed when creating statistics element - this one will be lost...', error.response?.data || error.stack || error.toString()], context)
-    }
-
     const response = {
       logEntryId,
       displayName: user.displayName,
-      userPrincipalName: user.userPrincipalName,
-      maskedPhoneNumber: maskPhoneNumber(user.phoneNumber)
+      userPrincipalName: user.userPrincipalName
     }
 
     return { status: 200, jsonBody: response }

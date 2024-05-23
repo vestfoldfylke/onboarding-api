@@ -2,7 +2,7 @@ const { app } = require('@azure/functions')
 const { getIdPortenClient } = require('../idporten-client')
 const { logger } = require('@vtfk/logger')
 
-app.http('LogoutUrl', {
+app.http('IdPortenLogoutUrl', {
   methods: ['GET'],
   authLevel: 'function',
   handler: async (request, context) => {

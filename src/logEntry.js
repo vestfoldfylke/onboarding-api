@@ -5,11 +5,12 @@ const { getMongoClient, closeMongoClient } = require('./mongo-client')
 /**
  * @typedef LogEntry
  * @property {boolean} successful
- * @property {boolean} passwordChanged
- * @property {("running"|"okey-dokey"|"failed")} status
+ * @property {("started"|"okey-dokey"|"failed")} status
  * @property {string} message
+ * @property {boolean} syncedToUserCollection
  * @property {string} startedTimestamp
  * @property {string} finishedTimestamp
+ * @property {number} runtime
  * @property {string} action
  * @property {string} invocationId
  * @property {string} ipAddress
@@ -19,10 +20,11 @@ const { getMongoClient, closeMongoClient } = require('./mongo-client')
  * @property {string} userType
  * @property {Object} idPorten
  * @property {Object} entraId
- * @property {Object} krr
- * @property {Object} resetPassword
- * @property {Object} sms
- * @property {Object[]} authenticationMethods
+ * @property {Object} mfaLogin
+ * @property {Object} [krr]
+ * @property {Object} [resetPassword]
+ * @property {Object} [sms]
+ * @property {Object} [passwordChanged]
  */
 
 /**
@@ -30,18 +32,21 @@ const { getMongoClient, closeMongoClient } = require('./mongo-client')
  * @param {*} context
  * @param {*} request
  * @param {ansatt | elev} userType
+ * @param {("ResetPassword"|"VerifyUser")} action
  * @returns {LogEntry} logEntry
  */
 
-const createLogEntry = (context, request, userType) => {
-  return {
+const createLogEntry = (context, request, userType, action) => {
+  if (!action) throw new Error('Missing required param "action"')
+  const logEntry = {
     successful: false,
-    passwordChanged: false,
-    status: 'running',
-    message: 'running',
+    status: 'started',
+    message: 'started',
+    syncedToUserCollection: false,
     startedTimestamp: new Date().toISOString(),
     finishedTimestamp: null,
-    action: 'ResetPassword',
+    runtime: null,
+    action,
     invocationId: context.invocationId,
     ipAddress: request.headers.get('X-Forwarded-For') || 'Ukjent',
     userAgent: request.headers.get('user-agent'),
@@ -65,28 +70,39 @@ const createLogEntry = (context, request, userType) => {
         message: null
       }
     },
-    krr: {
-      phoneNumber: null,
-      result: {
-        status: null,
-        message: null
-      }
-    },
-    resetPassword: {
-      result: {
-        status: null,
-        message: null
-      }
-    },
-    sms: {
-      phoneNumber: null,
-      result: {
-        status: null,
-        message: null
-      }
-    },
-    authenticationMethods: []
+    mfaLogin: {
+      successful: false,
+      timestamp: null
+    }
   }
+  if (action === 'ResetPassword') {
+    logEntry.krr = {
+      phoneNumber: null,
+      result: {
+        status: null,
+        message: null
+      }
+    }
+    logEntry.resetPassword = {
+      result: {
+        status: null,
+        message: null
+      }
+    }
+    logEntry.sms = {
+      phoneNumber: null,
+      result: {
+        status: null,
+        message: null
+      }
+    }
+    logEntry.passwordChanged = {
+      successful: false,
+      timestamp: null
+    }
+  }
+
+  return logEntry
 }
 
 /**

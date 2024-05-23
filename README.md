@@ -20,14 +20,51 @@ API for å onboarde folk
 - Bruker må klikke på "trykk her", blir så sendt til enterprise app / ENTRA_CLIENT - som IKKE har MFA-CA-policy på seg (grunnet forferdelig rekkefølge hos Microsoft - vi vil at brukeren må sette nytt passord FØR mfa)
   - Her må bruker putte inn engangs/togangspassordet - for så å sette seg et nytt passord
 - Deretter blir brukeren redirected tilbake til frontend med code og state, sender over code og state til api her igjen, og blir logga inn i Entra
-- Ved suksess-innlogging blir såååå igjen!! Brukeren redirected, denne gangen til https://portal.office.com, der blir det tvunget på MFA også
-- Så er den stakkars brukeren ferdig
+- Deretter blir de redirected til MFA-enterprise-appen, må logge inn med tofaktor, sendt tilbake med state og code, og deretter logges nok en gang inn i backend - og backend kan sette denne prosessen til ferdig.
+
+- Da kan hele loggingen skje basert på hendelsene, trenger ikke timer-trigger jobber- Dersom vi krever at det er DENNE prosessen som følges for at vi verfiiserer bruker.
+
+Når de kommer tilbake fra entra-pålogging MED MFA - så setter vi logg-oppføringen til ferdig. HAr de ikke gjort dette, må de gjøre det på nytt, og loggoppføringen er feilet.
+
+
+# Ny tanke?
+- Etter idporten, lag en oppføring på brukeren
+- Etter MFA-login - fullfør den samme oppføringen
+- Spørsmål - hvordan knyttes oppføringene?
+- State i OIDC?
+- Titsvindu? Innen en viss tid?
+- Nei - state, den har kort elvetid og er unik. Kobles på mongodb-oppføringen.
+- Da kan vi faktsik verifisere at det gjøres via løsningen vår.
+- Trenger ikke schedules.
+- Så lenge en state opprettes - lagres i mongodb, forsvinner den ikke, og kan brukes i løsningen.
+- Hva om brukeren var halvferdig. Og begynte igjen. Kan tvinge id-porten og ny oppføring.
+
+# Flyt
+- Frontend - velg elev eller ansatt
+- Frontend - velg reset passord eller verifiser bruker - sender med userType og action til api
+- Reset passord
+  - Logg inn idporten - returnerer state og code, sender til API - lagrer mongodb. Resetter passord, returner data + en id for oppføringen
+  - Trykk her når du har fått sms
+  - Sender deg til password-appreg, med id som state
+  - Returnerer med code + state
+  - API tar i mot code og state - lagrer at passord er resatt. Returnerer data + den samme id-en for oppføringen i mongodb
+  - Frontend sender så til mfa-appreg, med id som state
+  - API tar i mot code og state - lagrer at MFA også er good - og at prosessen er ferdig. Returnerer data.
+
+Kan det hackes?
+Alle api-kallene krever en code, som kommer fra en innlogging.
+Vi kan også verifisere at det er riktig bruker i mongodb mot code/token, får å sikre at noen ikke tukler med state. 
+
+- Fiks appregs og test ordentlig :)
 
 # Full-report
 - TODO
 
 # Update-log-entries
 - TODO
+- For resett passord
+  - Er passord satt?
+  - Er mfa
 
 
 # Trenger API Permissions

@@ -13,21 +13,26 @@ const computeCodeChallengeFromVerifier = async (verifier) => {
   return Buffer.from(hashedValue).toString('base64url')
 }
 
-app.http('LoginUrl', {
+app.http('IdPortenLoginUrl', {
   methods: ['GET'],
   authLevel: 'function',
   handler: async (request, context) => {
-    logger('info', ['New request for loginurl'])
-    const userType = request.query.get('userType')
+    logger('info', ['New request for loginurl'], context)
+    const userType = request.query.get('user_type')
     if (!userType || !['ansatt', 'elev'].includes(userType)) {
-      logger('warn', ['Request does not contain query param "ansatt" eller "elev" :O'])
+      logger('warn', ['Request does not contain query param user_type with "ansatt" eller "elev" :O'])
       return { status: 400, jsonBody: { message: 'Er du ikke ansatt eller elev??' } }
+    }
+    const action = request.query.get('action')
+    if (!action || !['resetpassword', 'verifyuser'].includes(action)) {
+      logger('warn', ['Request does not contain query param action with "resetpassword" eller "verifyuser" :O'])
+      return { status: 400, jsonBody: { message: 'Du har glemt å slenge med "action" i query params' } }
     }
     try {
       const idPortenClient = await getIdPortenClient()
 
       const randomState = await generateRandomBase64String()
-      const state = `${userType}${randomState}`
+      const state = `${userType}${action}${randomState}`
       const codeVerifier = await generateRandomBase64String(43) // Must be at least 43 characters
       const codeChallenge = await computeCodeChallengeFromVerifier(codeVerifier)
       const nonce = await generateRandomBase64String()
@@ -37,6 +42,7 @@ app.http('LoginUrl', {
         code_challenge_method: 'S256',
         nonce,
         state,
+        prompt: 'login',
         acr_values: userType === 'elev' ? 'idporten-loa-substantial' : 'idporten-loa-substantial' // idporten-loa-high for kun BankID og commfides
       })
 
