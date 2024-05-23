@@ -175,8 +175,8 @@ app.http('VerifyUser', {
       }
       // Hvis ingen bruker returner vi tidlig med beskjed
       if (!entraUser.id) {
-        await handleError({ error: 'Could not find entraID user on ssn', jobName: 'entraId', logEntry, logEntryId, message: 'Could not find entraID user on ssn.', status: 500, logPrefix }, context)
-        return { status: 200, jsonBody: { hasError: true, message: 'Fant ingen bruker hos oss med ditt fødselsnummer, ta kontakt med servicedesk eller din leder dersom du mener dette er feil.' } }
+        const { status, jsonBody } = await handleError({ error: 'Could not find entraID user on ssn', jobName: 'entraId', logEntry, logEntryId, message: 'Fant ingen bruker hos oss med ditt fødselsnummer, ta kontakt med servicedesk eller din leder dersom du mener dette er feil.', status: 404, logPrefix }, context)
+        return { status, jsonBody }
       }
       if (DEMO_MODE.ENABLED && DEMO_USER_OVERRIDE?.DEMO_UPN) {
         logger('warn', [logPrefix, 'DEMO_MODE is enabled, and DEMO_USER_OVERRIDE is present on idPorten pid, setting user.userPrincipalName to DEMO_USER_OVERRIDE.DEMO_UPN'], context)
