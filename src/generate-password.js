@@ -1,3 +1,5 @@
+const { BAD_WORDS } = require("../config")
+
 const generatePassword = () => {
   // const letters = 'abcdefghijklmnopqrstuvwxyz'
   const vocals = 'aeiouy'
@@ -149,8 +151,20 @@ const generateFriendlyPassword = () => {
   const firstWordLength = 3 + Math.floor(Math.random() * 2) // First word is 3 to 4 letters long
   const numberOfDigits = 3 + Math.floor(Math.random() * 2) // 3 or 4 letters
   const secondWordLength = needLength - firstWordLength - numberOfDigits // Second word is the rest
-  const firstWord = generateWord(firstWordLength)
-  const secondWord = generateWord(secondWordLength)
+  let firstWord = generateWord(firstWordLength)
+
+  // Filter out bad words
+  while (BAD_WORDS.some(badWord => firstWord.toLowerCase().includes(badWord))) {
+    // console.log(`BAD WORD 1 ${firstWord}`)
+    firstWord = generateWord(firstWordLength)
+    // console.log(`NEW WORD 1 ${firstWord}`)
+  }
+  let secondWord = generateWord(secondWordLength)
+  while (BAD_WORDS.some(badWord => secondWord.toLowerCase().includes(badWord))) {
+    // console.log(`BAD WORD 2 ${secondWord}`)
+    secondWord = generateWord(secondWordLength)
+    // console.log(`NEW WORD 2 ${secondWord}`)
+  }
   const number = generateRandomNumber(numberOfDigits)
   const password = `${firstWord}-${secondWord}-${number}`
   return password
@@ -163,11 +177,16 @@ console.log('')
 const pws = generateFriendlyPassword()
 console.log(pws)
 console.log('')
-
+*/
 // console.log(generateWord(10))
 // console.log(' ')
-
+/*
+for (let i = 0; i < 100; i++) {
+  const pw = generateFriendlyPassword()
+  // console.log(pw)
+}
 */
+
 /*
 const passwords = []
 let duplicates = 0
