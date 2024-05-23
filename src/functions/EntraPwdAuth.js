@@ -55,14 +55,14 @@ app.http('EntraPwdAuth', {
       const logEntry = await collection.findOne({ _id: ObjectId.createFromHexString(logEntryId) })
       if (!logEntry) throw new Error('Could not find a corresponding logEntry for this state, restart the process from the client')
       logger('info', [logPrefix, 'Found corresponding logEntry with state/ObjectId - verifying user, and updating logEntry'])
-      
+
       if (logEntry.entraId.id === 'DEMO-ID') {
         logger('warn', [logPrefix, 'LogEntry has entraId.id = "DEMO-ID", will skip validation of entra id vs oid'], context)
       } else {
         if (logEntry.entraId.id !== tokenResponse.idTokenClaims.oid) throw new Error(`Logged in user oid does not match logEntry.entraId.id - someone is doing something funky - ObjectId: ${logEntryId}`)
         logger('info', [logPrefix, 'oid from token matched entraId.in logs, updating logEntry'])
       }
-      
+
       await collection.updateOne({ _id: ObjectId.createFromHexString(logEntryId) }, { $set: { passwordChanged: { successful: true, timestamp: new Date().toISOString() } } })
 
       logger('info', [logPrefix, `Successfully authenticated user ${tokenResponse.idTokenClaims.preferred_username} by code, and updated logEntry ${logEntryId} with passwordChanged info. responding to user`], context)

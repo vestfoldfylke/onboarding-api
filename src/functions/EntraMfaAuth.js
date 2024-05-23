@@ -63,7 +63,7 @@ app.http('EntraMfaAuth', {
         if (logEntry.entraId.id !== tokenResponse.idTokenClaims.oid) throw new Error(`Logged in user oid does not match logEntry.entraId.id - someone is doing something funky - ObjectId: ${logEntryId}`)
         logger('info', [logPrefix, 'oid from token matched entraId.in logs, updating logEntry'])
       }
-      
+
       const finishedTimestamp = new Date()
       const runtime = finishedTimestamp - new Date(logEntry.startedTimestamp)
       await collection.updateOne({ _id: ObjectId.createFromHexString(logEntryId) }, { $set: { successful: true, status: 'okey-dokey', message: 'finished - user has logged in with both ID-porten and EntraID', finishedTimestamp: finishedTimestamp.toISOString(), runtime, result: 'Verified user', mfaLogin: { successful: true, timestamp: new Date().toISOString() } } })
