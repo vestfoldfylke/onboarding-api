@@ -69,7 +69,7 @@ app.http('VerifyUser', {
     const checks = stateCache.get(state)
     if (!checks) {
       logger('warn', ['The state sent by user does not match any state in state cache - is someone trying to be smart?'], context)
-      return { status: 500, jsonBody: { message: 'Fant ingen startet pålogging med denne staten - har du venta for lenge?' } }
+      return { status: 500, jsonBody: { message: 'Du har brukt for lang tid, rykk tilbake til start' } }
     }
 
     // Check state param for userType (startswith)

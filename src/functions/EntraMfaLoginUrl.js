@@ -38,7 +38,7 @@ app.http('EntraMfaLoginUrl', {
         loginHint: queryLoginHint || undefined
       })
 
-      stateCache.set(state, { verifier }, 300)
+      stateCache.set(state, { verifier }, 600)
 
       logger('info', [logPrefix, 'Successfully got entra auth url, responding to user'], context)
       return { status: 200, jsonBody: { loginUrl: authUrl } }

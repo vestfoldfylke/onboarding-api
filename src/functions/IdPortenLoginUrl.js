@@ -46,7 +46,7 @@ app.http('IdPortenLoginUrl', {
         acr_values: userType === 'elev' ? 'idporten-loa-substantial' : 'idporten-loa-substantial' // idporten-loa-high for kun BankID og commfides
       })
 
-      stateCache.set(state, { codeVerifier, nonce }, 300)
+      stateCache.set(state, { codeVerifier, nonce }, 600)
 
       logger('info', ['Successfully got id-porten auth url, responding to user'])
       return { status: 200, jsonBody: { loginUrl: authUrl } }
