@@ -1,4 +1,4 @@
-const { BAD_WORDS } = require("../config")
+const { BAD_WORDS } = require('../config')
 
 const generatePassword = () => {
   // const letters = 'abcdefghijklmnopqrstuvwxyz'
