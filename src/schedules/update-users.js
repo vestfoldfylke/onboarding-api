@@ -5,6 +5,7 @@ const { getMongoClient } = require('../mongo-client')
 
 const repackUser = (entraUser, user, userType) => {
   if (!userType) throw new Error('You forgot to send parameter "userType"')
+  if (!['ansatt', 'elev'].includes(userType)) throw new Error(`Parameter userType must be "ansatt" or "elev" - got ${userType}`)
   const extensionAttribute6 = entraUser.onPremisesExtensionAttributes.extensionAttribute6 || null
   // Dont want all extensionAttr
   delete entraUser.onPremisesExtensionAttributes
@@ -54,10 +55,10 @@ const updateUsers = async (context) => {
     const user = previousUsers.find(user => user.id === employee.id)
     if (user) {
       // Simply swap entraUser property with latest info
-      currentUsers.push(repackUser(employee, user, 'employee'))
+      currentUsers.push(repackUser(employee, user, 'ansatt'))
     } else {
       // User does not exist in previousUsers, add user
-      currentUsers.push(repackUser(employee, { latestLogEntry: null }, 'employee'))
+      currentUsers.push(repackUser(employee, { latestLogEntry: null }, 'ansatt'))
     }
   }
 
@@ -67,10 +68,10 @@ const updateUsers = async (context) => {
     const user = previousUsers.find(user => user.id === student.id)
     if (user) {
       // Simply swap entraUser property with latest info
-      currentUsers.push(repackUser(student, user, 'student'))
+      currentUsers.push(repackUser(student, user, 'elev'))
     } else {
       // User does not exist in previousUsers, add user
-      currentUsers.push(repackUser(student, { latestLogEntry: null }, 'student'))
+      currentUsers.push(repackUser(student, { latestLogEntry: null }, 'elev'))
     }
   }
 
@@ -115,8 +116,7 @@ const updateUsers = async (context) => {
   const logCollection = mongoClient.db(MONGODB.DB_NAME).collection(MONGODB.LOG_COLLECTION)
   try {
     await logCollection.createIndex({ successful: 1 }, { background: true })
-    await logCollection.createIndex({ passwordChanged: 1 }, { background: true })
-    await logCollection.createIndex({ finishedTimestamp: 1 }, { background: true })
+    await logCollection.createIndex({ syncedToUserCollection: 1 }, { background: true })
     await usersCollection.createIndex({ id: 1 }, { background: true })
   } catch (error) {
     logger('warn', ['Aiaia, index creation failed, you might get bombarded with emails from mongodb'], context)
