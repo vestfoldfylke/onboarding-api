@@ -13,6 +13,7 @@ const repackUser = (entraUser, user, userType) => {
     userType,
     ...entraUser,
     extensionAttribute6,
+    updatedTimestamp: new Date().toISOString(),
     latestLogEntry: user.latestLogEntry || null
   }
 }
