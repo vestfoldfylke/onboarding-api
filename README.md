@@ -1,5 +1,12 @@
 # onboarding-api
-API for å onboarde folk
+API for å onboarde folk - 
+
+## Setup
+### Prerequisities
+- ID-porten klient i samarbeidsportalen
+  - Client secret post
+  - Trenger ikke refresh tokens
+- 
 
 # Reset passord flyt
 - Bruker kommer til portal - velger om hen er ansatt eller elev
@@ -55,16 +62,12 @@ Kan det hackes?
 Alle api-kallene krever en code, som kommer fra en innlogging.
 Vi kan også verifisere at det er riktig bruker i mongodb mot code/token, får å sikre at noen ikke tukler med state. 
 
-- Fiks appregs og test ordentlig :)
-
 # Full-report
+Oppdaterer bruker-collection
 - TODO
 
 # Update-log-entries
-- TODO
-- For resett passord
-  - Er passord satt?
-  - Er mfa
+- Kobler nyeste logentries på bruker-collection
 
 
 # Trenger API Permissions
@@ -78,7 +81,6 @@ UserAuthenticationMethod.ReadWrite.All (Trengs kun i prod - der det faktisk skal
 
 
 # Flyt for id-porten
-
 - Browser kaller på API/getLoginUrl
   - Her settes state, for å "binde" sluttbruker api-kall mot apiet api-kall mot idporten (så de har en felles context)
   - Nonce (number used once). Den trenger ikke sluttbruker bry seg med tror jeg. Nonce går til brukeren. Den må så verifiseres når vi får tilbake id-tokenet. Den er da IKKE med i spørring etter token.
