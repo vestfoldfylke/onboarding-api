@@ -132,6 +132,7 @@ dist
 # Local settings
 local.settings.json
 *local.settings.json
+local.settings*.json
 
 # Dev files
 ignore/
