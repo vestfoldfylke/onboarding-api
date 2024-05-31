@@ -11,25 +11,19 @@ const { MONGODB, GRAPH } = require('../../config')
 const { repackUser } = require('./update-users')
 
 const checkNewLogEntries = async (context) => {
-  /*
-  Vi kan enten gå gjennom alle nye logEntries og sjekke mfa osv osv
-  Eller vi kan gå gjennom alle ansatte og sjekke om en ansatt har nye logEntries. Og deretter sjekke MFA
-  Vi trenger bare å hente authentication method for en bruker en gang - i tilfelle de har laget mange logEntries på en gang
-  */
   const mongoClient = await getMongoClient()
   const logCollection = mongoClient.db(MONGODB.DB_NAME).collection(MONGODB.LOG_COLLECTION)
   const userCollection = mongoClient.db(MONGODB.DB_NAME).collection(MONGODB.USERS_COLLECTION)
-  const tenMinutesAgo = new Date(Date.now() - (1000 * 60 * 10))
+  // const tenMinutesAgo = new Date(Date.now() - (1000 * 60 * 10)) // finishedTimestamp: { $lt: tenMinutesAgo.toISOString() } if you want to wait a bit
 
   /**
    * @type {import('../logEntry').LogEntry[]}
    */
-  const successfulLogEntries = await logCollection.find({ successful: true, passwordChanged: false, finishedTimestamp: { $lt: tenMinutesAgo.toISOString() } }).toArray()
+  const successfulLogEntries = await logCollection.find({ successful: true, syncedToUserCollection: false }).toArray()
   logger('info', [`Found ${successfulLogEntries.length} new log entries to handle`], context)
 
   const checkedUsers = []
   for (const logEntry of successfulLogEntries) {
-    if (logEntry.passwordChanged) continue // Already handled (Håndterer ikke egt den under dette?)
     if (checkedUsers.includes(logEntry.entraId.id)) continue // Already checked
     const entraUser = logEntry.entraId
 
@@ -40,6 +34,8 @@ const checkNewLogEntries = async (context) => {
     const userLogEntries = successfulLogEntries.filter(entry => entry.entraId.id === entraUser.id).sort((a, b) => new Date(b.finishedTimestamp) - new Date(a.finishedTimestamp)) // newest first
     const latestLogEntry = userLogEntries[0]
 
+    /*
+    // If we want authentication methods for user in reports
     logger('info', [logPrefix, 'Fetching authentication methods'], context)
     const authenticationMethods = await getAuthenticationMethods(entraUser.id)
     logger('info', [logPrefix, `Found ${authenticationMethods.value.length} authentication methods`], context)
@@ -73,6 +69,9 @@ const checkNewLogEntries = async (context) => {
     latestLogEntry.authenticationMethods = authenticationMethods
 
     logger('info', [logPrefix, 'have changed password and setup mfa, saving data to logEntry and to users collection'], context)
+    */
+
+    logger('info', [logPrefix, 'LogEntry is ok, saving status to logEntry and latestLogEntry to users collection'], context)
 
     // Save latestLogEntry to userObject in users, first check that the user exists
     const user = await userCollection.findOne({ id: entraUser.id })
@@ -83,7 +82,7 @@ const checkNewLogEntries = async (context) => {
       // User was created after user-sync
       logger('warn', [logPrefix, `User ${entraUser.userPrincipalName} did not exist in users-collection, was it created today? Fetching some data before saving`], context)
       const entraResult = await getEntraUser(entraUser.id)
-      const userType = entraUser.userPrincipalName.endsWith(GRAPH.EMPLOYEE_UPN_SUFFIX) ? 'ansatt' : 'student'
+      const userType = entraUser.userPrincipalName.endsWith(GRAPH.EMPLOYEE_UPN_SUFFIX) ? 'ansatt' : 'elev'
       const repacked = repackUser(entraResult, { latestLogEntry }, userType)
       const createResult = await userCollection.insertOne(repacked)
       logger('info', [logPrefix, `Successfully created user object for ${entraUser.userPrincipalName}`, createResult], context)
@@ -92,7 +91,7 @@ const checkNewLogEntries = async (context) => {
     // Update logEntries
     logger('info', [logPrefix, `All good in users-collection, updating ${userLogEntries.length} relevant logEntries in log-collection`], context)
     for (const userLogEntry of userLogEntries) {
-      await logCollection.updateOne({ _id: userLogEntry._id }, { $set: { passwordChanged: true, authenticationMethods } })
+      await logCollection.updateOne({ _id: userLogEntry._id }, { $set: { syncedToUserCollection: true } })
     }
     logger('info', [logPrefix, `Updated ${userLogEntries.length} relevant logEntries in log-collection`], context)
   }
