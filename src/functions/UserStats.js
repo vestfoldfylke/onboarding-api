@@ -3,7 +3,7 @@ const { getStateCache } = require('../state-cache')
 const { logger } = require('@vtfk/logger')
 const { getEntraMfaClient } = require('../entra-client')
 const { MONGODB, ENTRA_MFA } = require('../../config')
-const { getMongoClient } = require('../mongo-client')
+const { getMongoClient, closeMongoClient } = require('../mongo-client')
 const { ObjectId } = require('mongodb')
 const { createMfaStat } = require('../stats')
 
@@ -13,18 +13,18 @@ app.http('UserStats', {
   methods: ['POST'],
   authLevel: 'function',
   handler: async (request, context) => {
-    let logPrefix = 'EntraMfaAuth'
+    let logPrefix = 'UserStats'
     logger('info', [logPrefix, 'New request'], context)
     // Validate request body
-    const { code, state } = await request.json()
+    const { code, state, onlyStats } = await request.json()
     if (!(code && state)) {
-      logger('warn', [logPrefix, 'Someone called EntraMfaAuth without code and state in body - is someone trying to hack us?'], context)
+      logger('warn', [logPrefix, 'Someone called UserStats without code and state in body - is someone trying to hack us?'], context)
       return { status: 400, jsonBody: { message: 'Du har glemt state og code i body da' } }
     }
 
     // Verify type as well, just for extra credits
     if ([code, state].some(param => typeof param !== 'string')) {
-      logger('warn', [logPrefix, 'Someone called EntraMfaAuth without code, and state as strings - is someone trying to hack us?'], context)
+      logger('warn', [logPrefix, 'Someone called UserStats without code, and state as strings - is someone trying to hack us?'], context)
       return { status: 400, jsonBody: { message: 'Du har glemt at state, og code skal være string...' } }
     }
 
@@ -49,7 +49,6 @@ app.http('UserStats', {
 
       logPrefix = logPrefix + ` - ${tokenResponse.idTokenClaims.preferred_username}`
 
-      // return { status: 200, jsonBody: tokenResponse.idTokenClaims.roles }
       // Check stats-role
       logger('info', [logPrefix, 'Validating stats role'], context)
       if (!tokenResponse.idTokenClaims.roles || !tokenResponse.idTokenClaims.roles.includes('Stats.Read')) {
@@ -60,11 +59,90 @@ app.http('UserStats', {
 
       // User has admin-role
       /*
-      Hent data fra mongodb (users-collection) - kvern sammen det Robin vil ha - og returner slik at frontend kan displaye det.
       Hent all statistikk-data som trengs og send til frontend
       */
 
-      return { status: 200, jsonBody: { oki: 'doki' } }
+      const mongoClient = await getMongoClient()
+      let users
+      try {
+        logger('info', ['Fetching users collection'], context)
+        const usersCollection = mongoClient.db(MONGODB.DB_NAME).collection(MONGODB.USERS_COLLECTION)
+        users = await usersCollection.find({}).toArray()
+        logger('info', [`Got ${users.length} users from users collection`], context)
+      } catch (error) {
+        if (error.toString().startsWith('MongoTopologyClosedError')) {
+          logger('warn', 'Oh no, topology is closed! Closing client')
+          closeMongoClient()
+        }
+        throw error
+      }
+
+      // Hent ut alle unike companyNames fra users
+      const companyNames = [... new Set(users.map(user => user.companyName))]
+      // Finn alle brukere som har samme tilhørighet
+      const usersRepacked = {}
+      let userStats = {}
+      if(onlyStats === true) {
+        companyNames.forEach(companyName => {
+          let notFinished = 0
+          let finished = 0
+          let notFinishedStudent = 0
+          let finishedStudent = 0
+  
+          usersRepacked[companyName] = users.filter(user => user.companyName === companyName).map(users => {
+            if(!users.companyName?.includes('skole')) {
+              if(users.latestLogEntry === null) {
+                notFinished += 1
+              } else {
+                finished += 1
+              }
+            } 
+            if(users.userType === 'elev' && users.companyName?.includes('skole')) {
+              if(users.latestLogEntry === null) {
+                notFinishedStudent += 1
+              } else {
+                finishedStudent += 1
+              }
+            } else {
+              if(users.latestLogEntry === null) {
+                notFinished += 1
+              } else {
+                finished += 1
+              }
+            }
+            userStats = {
+              ansatt: {
+                antall: finished,
+                max: finished + notFinished,
+                fullføringsgrad: ((finished / (finished + notFinished))*100)
+              },
+              elev: {
+                antall: finished,
+                max: finished + notFinishedStudent,
+                fullføringsgrad: Number(((finishedStudent / (finishedStudent + notFinishedStudent))*100).toFixed(2))
+              },
+            }
+          })
+          return usersRepacked[companyName] = {...userStats}
+        })    
+        const usersStats = []
+        for(const [companyName, companyStats] of Object.entries(usersRepacked)) {
+          if(companyStats.elev.max === 0) {
+            companyStats.elev = null
+          }
+          companyStats.navn = companyName
+          usersStats.push({...companyStats})
+        }
+        return { status: 200, jsonBody: usersStats }
+      } else {
+          const csvUsers = users.map(user => {
+            user.onboardedTimestamp = user.latestLogEntry?.finishedTimestamp || null
+            const csvUser = { ...user }
+            delete csvUser.latestLogEntry
+            return csvUser      
+          })
+        return { status: 200, jsonBody: csvUsers }
+      }
     } catch (error) {
       logger('error', ['Failed when fetching stats', error.response?.data || error.stack || error.toString()], context)
       return { status: 500, jsonBody: { message: 'Failed when fetching stats from db', data: error.response?.data || error.stack || error.toString() } }
