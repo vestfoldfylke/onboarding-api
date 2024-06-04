@@ -3,7 +3,7 @@ const { logger } = require('@vtfk/logger')
 const { updateUsers } = require('../schedules/update-users')
 
 app.timer('UpdateUserCollection', {
-  schedule: '0 0 2 ? * * *', // Kl 02:00 om natta
+  schedule: '0 2 * * *', // Kl 02:00 om natta
   handler: async (myTimer, context) => {
     logger('info', ['UpdateUserCollection - new run'], context)
     try {
