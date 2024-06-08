@@ -1,9 +1,9 @@
 const { app } = require('@azure/functions')
 const { getStateCache } = require('../state-cache')
 const { logger } = require('@vtfk/logger')
-const { getEntraMfaClient } = require('../entra-client')
+const { getEntraMfaClient, getStatisticsClient } = require('../entra-client')
 const { CryptoProvider } = require('@azure/msal-node')
-const { ENTRA_MFA } = require('../../config')
+const { ENTRA_MFA, ENTRA_STATISTICS } = require('../../config')
 
 const stateCache = getStateCache()
 
@@ -22,7 +22,7 @@ app.http('EntraMfaLoginUrl', {
       logPrefix += 'stats'
       logger('info', ['Action is present and is "stats", generating stats loginurl'], context)
       try {
-        const entraClient = getEntraMfaClient()
+        const entraClient = getStatisticsClient()
 
         const state = `stats${cryptoProvider.createNewGuid()}`
 
@@ -30,7 +30,7 @@ app.http('EntraMfaLoginUrl', {
 
         const authUrl = await entraClient.getAuthCodeUrl({
           state,
-          redirectUri: ENTRA_MFA.ClIENT_REDIRECT_URI,
+          redirectUri: ENTRA_STATISTICS.ClIENT_REDIRECT_URI,
           codeChallenge: challenge,
           codeChallengeMethod: 'S256'
         })

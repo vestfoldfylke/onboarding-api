@@ -5,6 +5,7 @@ API for å onboarde folk, verifisere bruker, og resette passord for brukere
 Løsningen er satt opp som en SPA med BFF for autentisering/autorisering
 
 [SPA / Frontend finnes her](https://github.com/vestfoldfylke/onboarding-web), dette repoet er BFF-en (backend-for-frontend)
+[SPA / Frontend finnes her](https://github.com/telemarkfylke/onboarding-web), dette repoet er BFF-en (backend-for-frontend)
 
 Løsningen er ment å dekke behovet for onboarding, verifisering og passordbytte for ansatte og elever i fylkeskommunen, og baserer seg på self-service av disse tjenestene bak ID-Porten.
 
@@ -44,17 +45,34 @@ Det må settes opp en app registration + enterprise application i EntraID (Azure
   - https:/{ditt-domene}/entrapwdcallback (web)
 Ellers styres denne med de policyene og brukerne du selv ønsker (hvem kan logge på, CA-policy osv)
 
+### EntraID statistics app registration
+Det må settes opp en app registration + enterprise application i EntraID (Azure) som brukere vil bli redirected/login til etter innlogging
+- API permissions
+  - User.Read (delegated)
+- Redirect URIs
+  - https:/{ditt-domene}/entrapwdcallback (web)
+Ellers styres denne med de policyene og brukerne du selv ønsker (hvem kan logge på, CA-policy osv)
+
 
 **MERK** Vi bruker to app-registrations for å få mer brukervennlig rekkefølge for passordbytte. Først passordbytte -> mfa
 
 ### EntraID verifiy / mfa app registration
-Det må settes opp en app registration + enterprise application i EntraID (Azure) som brukere vil bli redirected/login til etter api/VerifyUser, og evt etter fullført passordbytte. Brukes også til innlogging for statistikk-brukere/admin
+Det må settes opp en app registration + enterprise application i EntraID (Azure) som brukere vil bli redirected/login til etter api/VerifyUser, og evt etter fullført passordbytte.
 - API permissions
   - User.Read (delegated)
 - Redirect URIs
   - https:/{ditt-domene}/entramfacallback (web)
 - App roles
   - Vanlig.Bruker (ansatte og elever)
+Ellers styres denne med de policyene og brukerne du selv ønsker (hvem kan logge på, CA-policy osv)
+
+### Stats app registration
+Det må settes opp en app registration + enterprise application i EntraID (Azure) som brukere vil bli redirected til etter innlogging.
+- API permissions
+  - User.Read (delegated)
+- Redirect URIs
+  - https:/{ditt-domene}/entramfacallback (web) 
+- App roles
   - Stats.Read (brukere som skal kunne hente statistikk fra løsningen, hvor mange som er onboardet via løsningen osv)
 Ellers styres denne med de policyene og brukerne du selv ønsker (hvem kan logge på, CA-policy osv)
 
@@ -103,6 +121,11 @@ Det må settes opp en Azure function resource i Azure. Kjør på en App service 
   "ENTRA_MFA_TENANT_ID": "home tenant id",
   "ENTRA_MFA_CLIENT_REDIRECT_URI": "https:/{ditt-domene}/entramfacallback",
   "ENTRA_MFA_CLIENT_POST_LOGOUT_REDIRECT_URI": "https:/{ditt-domene}",
+  "ENTRA_STATISTICS_CLIENT_ID": "client id for the mfa/verify/statistics app registration",
+  "ENTRA_STATISTICS_CLIENT_SECRET": "client secret for the mfa/verify/statistics app registration",
+  "ENTRA_STATISTICS_TENANT_ID": "home tenant id",
+  "ENTRA_STATISTICS_CLIENT_REDIRECT_URI": "https:/{ditt-domene}/entramfacallback",
+  "ENTRA_STATISTICS_CLIENT_POST_LOGOUT_REDIRECT_URI": "https:/{ditt-domene}",
   "GRAPH_SSN_EXTENSION_ATTRIBUTE": "name of extension attribute for employee ssn",
   "GRAPH_EMPLOYEE_UPN_SUFFIX": "employee upn suffix (including '@')",
   "GRAPH_STUDENT_UPN_SUFFIX": "student upn suffix (including '@')",
