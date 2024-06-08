@@ -1,7 +1,7 @@
 const { app } = require('@azure/functions')
 const { getStateCache } = require('../state-cache')
 const { logger } = require('@vtfk/logger')
-const { getEntraMfaClient } = require('../entra-client')
+const { getStatisticsClient } = require('../entra-client')
 const { MONGODB, ENTRA_MFA } = require('../../config')
 const { getMongoClient, closeMongoClient } = require('../mongo-client')
 const { ObjectId } = require('mongodb')
@@ -35,7 +35,7 @@ app.http('UserStats', {
       return { status: 500, jsonBody: { message: 'Du har brukt for lang tid, rykk tilbake til start' } }
     }
     try {
-      const entraClient = getEntraMfaClient()
+      const entraClient = getStatisticsClient()
 
       const tokenResponse = await entraClient.acquireTokenByCode({
         redirectUri: ENTRA_MFA.ClIENT_REDIRECT_URI,
@@ -78,33 +78,33 @@ app.http('UserStats', {
       }
 
       // Hent ut alle unike companyNames fra users
-      const companyNames = [... new Set(users.map(user => user.companyName))]
+      const companyNames = [...new Set(users.map(user => user.companyName))]
       // Finn alle brukere som har samme tilhørighet
       const usersRepacked = {}
       let userStats = {}
-      if(onlyStats === true) {
+      if (onlyStats === true) {
         companyNames.forEach(companyName => {
           let notFinished = 0
           let finished = 0
           let notFinishedStudent = 0
           let finishedStudent = 0
-  
+
           usersRepacked[companyName] = users.filter(user => user.companyName === companyName).map(users => {
-            if(!users.companyName?.includes('skole')) {
-              if(users.latestLogEntry === null) {
+            if (!users.companyName?.includes('skole')) {
+              if (users.latestLogEntry === null) {
                 notFinished += 1
               } else {
                 finished += 1
               }
-            } 
-            if(users.userType === 'elev' && users.companyName?.includes('skole')) {
-              if(users.latestLogEntry === null) {
+            }
+            if (users.userType === 'elev' && users.companyName?.includes('skole')) {
+              if (users.latestLogEntry === null) {
                 notFinishedStudent += 1
               } else {
                 finishedStudent += 1
               }
             } else {
-              if(users.latestLogEntry === null) {
+              if (users.latestLogEntry === null) {
                 notFinished += 1
               } else {
                 finished += 1
@@ -114,33 +114,33 @@ app.http('UserStats', {
               ansatt: {
                 antall: finished,
                 max: finished + notFinished,
-                fullføringsgrad: ((finished / (finished + notFinished))*100)
+                fullføringsgrad: ((finished / (finished + notFinished)) * 100)
               },
               elev: {
                 antall: finished,
                 max: finished + notFinishedStudent,
-                fullføringsgrad: Number(((finishedStudent / (finishedStudent + notFinishedStudent))*100).toFixed(2))
-              },
+                fullføringsgrad: Number(((finishedStudent / (finishedStudent + notFinishedStudent)) * 100).toFixed(2))
+              }
             }
           })
-          return usersRepacked[companyName] = {...userStats}
-        })    
+          return usersRepacked[companyName] = { ...userStats }
+        })
         const usersStats = []
-        for(const [companyName, companyStats] of Object.entries(usersRepacked)) {
-          if(companyStats.elev.max === 0) {
+        for (const [companyName, companyStats] of Object.entries(usersRepacked)) {
+          if (companyStats.elev.max === 0) {
             companyStats.elev = null
           }
           companyStats.navn = companyName
-          usersStats.push({...companyStats})
+          usersStats.push({ ...companyStats })
         }
         return { status: 200, jsonBody: usersStats }
       } else {
-          const csvUsers = users.map(user => {
-            user.onboardedTimestamp = user.latestLogEntry?.finishedTimestamp || null
-            const csvUser = { ...user }
-            delete csvUser.latestLogEntry
-            return csvUser      
-          })
+        const csvUsers = users.map(user => {
+          user.onboardedTimestamp = user.latestLogEntry?.finishedTimestamp || null
+          const csvUser = { ...user }
+          delete csvUser.latestLogEntry
+          return csvUser
+        })
         return { status: 200, jsonBody: csvUsers }
       }
     } catch (error) {
