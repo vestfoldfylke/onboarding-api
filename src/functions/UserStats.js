@@ -117,7 +117,7 @@ app.http('UserStats', {
          
           usersRepacked[companyName] = users.filter(user => user.companyName === companyName).map(users => {
             // if (!users.companyName?.includes(['skole'])) {
-            if (['skole', 'kompetansebyggeren', 'skule', 'skolen'].some(school => !users.companyName?.includes(school))) {
+            if (users.userType === 'ansatt' && ['skole', 'kompetansebyggeren', 'skule', 'skolen'].some(school => !users.companyName?.includes(school))) {
               if (users.latestLogEntry === null) {
                 notFinished += 1
               } else {
@@ -144,8 +144,8 @@ app.http('UserStats', {
                 fullføringsgrad: Number(((finished / (finished + notFinished)) * 100).toFixed(2))
               },
               elev: {
-                antall: finished,
-                max: finished + notFinishedStudent,
+                antall: finishedStudent,
+                max: finishedStudent + notFinishedStudent,
                 fullføringsgrad: Number(((finishedStudent / (finishedStudent + notFinishedStudent)) * 100).toFixed(2))
               }
             }
@@ -162,6 +162,9 @@ app.http('UserStats', {
         }
         // Sorter etter navn
         userStats = usersStats.sort((a, b) => a.navn.localeCompare(b.navn))
+        
+        console.log(userStats)
+        
         return { status: 200, jsonBody: usersStats }
       } else {
         const csvUsers = users.map(user => {
