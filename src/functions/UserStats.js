@@ -2,7 +2,7 @@ const { app } = require('@azure/functions')
 const { getStateCache } = require('../state-cache')
 const { logger } = require('@vtfk/logger')
 const { getStatisticsClient } = require('../entra-client')
-const { MONGODB, ENTRA_MFA } = require('../../config')
+const { MONGODB, ENTRA_MFA, EXCLUDED_COMPANIES } = require('../../config')
 const { getMongoClient, closeMongoClient } = require('../mongo-client')
 const { ObjectId } = require('mongodb')
 const { createMfaStat } = require('../stats')
@@ -89,15 +89,42 @@ app.http('UserStats', {
           let notFinishedStudent = 0
           let finishedStudent = 0
 
+          // If companyName is Vestfold og Telemark fylkeskommune - Lærling or Vestfold og Telemark fylkeskommune - OT Ungdom, remove them from stats
+          if ((companyName === 'Vestfold og Telemark fylkeskommune - Lærling') || (companyName ==='Vestfold og Telemark fylkeskommune - OT Ungdom')) {
+            return null
+          }
+
+          // Remove any companyNames that are null
+          if (companyName === null) {
+            return null
+          }
+
+          // Remove any companyNames that are empty
+          if (companyName === '') {
+            return null
+          }
+
+          // Remove any companyNames that are undefined
+          if (companyName === undefined) {
+            return null
+          }
+
+          // Remove any companyNames that is found in the EXCLUDED_COMPANIES array. Removes all companies that belongs to the other county
+          
+          if (EXCLUDED_COMPANIES.some(excluded => companyName.toLowerCase().includes(excluded))) {
+            return null
+          }
+         
           usersRepacked[companyName] = users.filter(user => user.companyName === companyName).map(users => {
-            if (!users.companyName?.includes('skole')) {
+            // if (!users.companyName?.includes(['skole'])) {
+            if (['skole', 'kompetansebyggeren', 'skule', 'skolen'].some(school => !users.companyName?.includes(school))) {
               if (users.latestLogEntry === null) {
                 notFinished += 1
               } else {
                 finished += 1
               }
             }
-            if (users.userType === 'elev' && users.companyName?.includes('skole')) {
+            if (users.userType === 'elev' && ['skole', 'kompetansebyggeren', 'skule', 'skolen'].some(school => !users.companyName?.includes(school))) {
               if (users.latestLogEntry === null) {
                 notFinishedStudent += 1
               } else {
@@ -114,7 +141,7 @@ app.http('UserStats', {
               ansatt: {
                 antall: finished,
                 max: finished + notFinished,
-                fullføringsgrad: ((finished / (finished + notFinished)) * 100)
+                fullføringsgrad: Number(((finished / (finished + notFinished)) * 100).toFixed(2))
               },
               elev: {
                 antall: finished,
@@ -133,6 +160,8 @@ app.http('UserStats', {
           companyStats.navn = companyName
           usersStats.push({ ...companyStats })
         }
+        // Sorter etter navn
+        userStats = usersStats.sort((a, b) => a.navn.localeCompare(b.navn))
         return { status: 200, jsonBody: usersStats }
       } else {
         const csvUsers = users.map(user => {

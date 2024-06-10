@@ -143,7 +143,8 @@ Det må settes opp en Azure function resource i Azure. Kjør på en App service 
   "MONGODB_DB_NAME": "db name",
   "STATISTICS_URL": "your statistics-api url",
   "STATISTICS_KEY": "your statistics-api key",
-  "BAD_WORDS": "fuck,knull,...,pule" // Words that are NOT allowed in password generation, new word is generated if a word contains one of the words in the list. Comma-separated, no whitespace
+  "BAD_WORDS": "fuck,knull,...,pule", // Words that are NOT allowed in password generation, new word is generated if a word contains one of the words in the list. Comma-separated, no whitespace
+  "EXCLUDED_COMPANIES":"skien,re,skogmo,horten,...." // CompanyNames that you want exluded for the graph and table. Comma-separeted, no whitespace
 }
 ```
 
