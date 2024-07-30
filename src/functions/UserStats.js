@@ -2,10 +2,8 @@ const { app } = require('@azure/functions')
 const { getStateCache } = require('../state-cache')
 const { logger } = require('@vtfk/logger')
 const { getStatisticsClient } = require('../entra-client')
-const { MONGODB, ENTRA_MFA, EXCLUDED_COMPANIES } = require('../../config')
+const { MONGODB, ENTRA_MFA, GRAPH } = require('../../config')
 const { getMongoClient, closeMongoClient } = require('../mongo-client')
-const { ObjectId } = require('mongodb')
-const { createMfaStat } = require('../stats')
 
 const stateCache = getStateCache()
 
@@ -15,8 +13,9 @@ app.http('UserStats', {
   handler: async (request, context) => {
     let logPrefix = 'UserStats'
     logger('info', [logPrefix, 'New request'], context)
+    
     // Validate request body
-    const { code, state, onlyStats } = await request.json()
+    const { code, state } = await request.json()
     if (!(code && state)) {
       logger('warn', [logPrefix, 'Someone called UserStats without code and state in body - is someone trying to hack us?'], context)
       return { status: 400, jsonBody: { message: 'Du har glemt state og code i body da' } }
@@ -77,103 +76,145 @@ app.http('UserStats', {
         throw error
       }
 
-      // Hent ut alle unike companyNames fra users
-      const companyNames = [...new Set(users.map(user => user.companyName))]
-      // Finn alle brukere som har samme tilhørighet
-      const usersRepacked = {}
-      let userStats = {}
-      if (onlyStats === true) {
-        companyNames.forEach(companyName => {
-          let notFinished = 0
-          let finished = 0
-          let notFinishedStudent = 0
-          let finishedStudent = 0
+      const schoolStats = []
+      const administrationStats = []
 
-          // If companyName is Vestfold og Telemark fylkeskommune - Lærling or Vestfold og Telemark fylkeskommune - OT Ungdom, remove them from stats
-          if ((companyName === 'Vestfold og Telemark fylkeskommune - Lærling') || (companyName ==='Vestfold og Telemark fylkeskommune - OT Ungdom')) {
-            return null
-          }
+      // Manual tweaks
+      const verstfoldSchoolStates = [
+        { state: 'OPT-FRV', companyName: 'Færder videregående skole' },
+        { state: 'OPT-GRV', companyName: 'Greveskogen videregående skole' },
+        { state: 'OPT-HOLV', companyName: 'Holmestrand videregående skole' },
+        { state: 'OPT-HORV', companyName: 'Horten videregående skole' },
+        { state: 'OPT-KB', companyName: 'Kompetansebyggeren' },
+        { state: 'OPT-MEV', companyName: 'Melsom videregående skole' },
+        { state: 'OPT-NTV', companyName: 'Nøtterøy videregående skole' },
+        { state: 'OPT-OP', companyName: 'Seksjon OT og PPT' },
+        { state: 'OPT-REV', companyName: 'Re videregående skole' },
+        { state: 'OPT-SANV', companyName: 'Sande videregående skole' },
+        { state: 'OPT-SFH', companyName: 'Sandefjord folkehøyskole' },
+        { state: 'OPT-SFV', companyName: 'Sandefjord videregående skole' },
+        { state: 'OPT-SMI', companyName: 'Skolen for sosialmedisinske institusjoner' },
+        { state: 'OPT-THV', companyName: 'Thor Heyerdahl videregående skole' }
+      ]
+      const feleknarkSchoolStates = [
+        { state: 'UT-BAV', companyName: 'Bamble videregående skole' },
+        { state: 'UT-BOV', companyName: 'Bø vidaregåande skule' },
+        { state: 'UT-FAGS', companyName: 'Fagskolen Vestfold og Telemark' },
+        { state: 'UT-HJV', companyName: 'Hjalmar Johansen videregående skole' },
+        { state: 'UT-KRV', companyName: 'Kragerø videregående skole' },
+        { state: 'UT-NOMV', companyName: 'Nome videregående skole' },
+        { state: 'UT-NOV', companyName: 'Notodden videregående skole' },
+        { state: 'UT-POV', companyName: 'Porsgrunn videregående skole' },
+        { state: 'UT-POA', companyName: 'Seksjon PPT, OT og alternative opplæringsarenaer' },
+        { state: 'UT-RJV', companyName: 'Rjukan videregående skole' },
+        { state: 'UT-SKIV', companyName: 'Skien videregående skole' },
+        { state: 'UT-SKOV', companyName: 'Skogmo videregående skole' },
+        { state: 'UT-VTV', companyName: 'Vest-Telemark vidaregåande skule' }
+      ]
 
-          // Remove any companyNames that are null
-          if (companyName === null) {
-            return null
-          }
+      const allSchoolStates = [...verstfoldSchoolStates, ...feleknarkSchoolStates]
 
-          // Remove any companyNames that are empty
-          if (companyName === '') {
-            return null
-          }
+      users.forEach(user => {
+        // Check if we just can skip the user
+        if (!user.accountEnabled) return
+        if (GRAPH.EMPLOYEE_UPN_SUFFIX.endsWith('vestfoldfylke.no') && feleknarkSchoolStates.some(state => state === user.state || (user.userType === 'elev' && state.companyName === user.companyName))) return
+        if (GRAPH.EMPLOYEE_UPN_SUFFIX.endsWith('telemarkfylke.no') && verstfoldSchoolStates.some(state => state === user.state || (user.userType === 'elev' && state.companyName === user.companyName))) return
+        if (user.companyName === 'Vestfold og Telemark fylkeskommune - Lærling') return
+        if (user.companyName === 'Vestfold og Telemark fylkeskommune - OT Ungdom') return
+        if (!user.companyName) return
 
-          // Remove any companyNames that are undefined
-          if (companyName === undefined) {
-            return null
-          }
-
-          // Remove any companyNames that is found in the EXCLUDED_COMPANIES array. Removes all companies that belongs to the other county
-          
-          if (EXCLUDED_COMPANIES.some(excluded => companyName.toLowerCase().includes(excluded))) {
-            return null
-          }
-         
-          usersRepacked[companyName] = users.filter(user => user.companyName === companyName).map(users => {
-            // if (!users.companyName?.includes(['skole'])) {
-            if (users.userType === 'ansatt' && ['skole', 'kompetansebyggeren', 'skule', 'skolen'].some(school => !users.companyName?.includes(school))) {
-              if (users.latestLogEntry === null) {
-                notFinished += 1
-              } else {
-                finished += 1
-              }
-            }
-            if (users.userType === 'elev' && ['skole', 'kompetansebyggeren', 'skule', 'skolen'].some(school => !users.companyName?.includes(school))) {
-              if (users.latestLogEntry === null) {
-                notFinishedStudent += 1
-              } else {
-                finishedStudent += 1
-              }
-            } else {
-              if (users.latestLogEntry === null) {
-                notFinished += 1
-              } else {
-                finished += 1
-              }
-            }
-            userStats = {
+        // Check if is school employee (state is OPT-blabla) or student in school (comanyName is school name and type is student)
+        const schoolState = allSchoolStates.find(school => school.state === user.state || (user.userType === 'elev' && school.companyName === user.companyName))
+        if (schoolState) { // User belongs to a school
+          if (!schoolStats.some(stat => stat.navn === schoolState.companyName)) {
+            schoolStats.push({ // Check if stats for company is there already, if not, add it
               ansatt: {
-                antall: finished,
-                max: finished + notFinished,
-                fullføringsgrad: Number(((finished / (finished + notFinished)) * 100).toFixed(2))
+                antall: 0,
+                max: 0,
+                fullføringsgrad: null
               },
               elev: {
-                antall: finishedStudent,
-                max: finishedStudent + notFinishedStudent,
-                fullføringsgrad: Number(((finishedStudent / (finishedStudent + notFinishedStudent)) * 100).toFixed(2))
-              }
-            }
-          })
-          return usersRepacked[companyName] = { ...userStats }
-        })
-        const usersStats = []
-        for (const [companyName, companyStats] of Object.entries(usersRepacked)) {
-          if (companyStats.elev.max === 0) {
-            companyStats.elev = null
+                antall: 0,
+                max: 0,
+                fullføringsgrad: null
+              },
+              navn: schoolState.companyName
+            })
           }
-          companyStats.navn = companyName
-          usersStats.push({ ...companyStats })
+          const schoolStat = schoolStats.find(stat => stat.navn === schoolState.companyName)
+          if (user.userType === 'ansatt') {
+            schoolStat.ansatt.max++
+            if (user.latestLogEntry) {
+              schoolStat.ansatt.antall++
+            }
+          } else if (user.userType === 'elev') {
+            schoolStat.elev.max++
+            if (user.latestLogEntry) {
+              schoolStat.elev.antall++
+            }
+          }
+          // Finished with school user, can continue (to avoid double count ;))
+          return
         }
-        // Sorter etter navn
-        userStats = usersStats.sort((a, b) => a.navn.localeCompare(b.navn))
-        
-        console.log(userStats)
-        
-        return { status: 200, jsonBody: usersStats }
-      } else {
-        const csvUsers = users.map(user => {
-          user.onboardedTimestamp = user.latestLogEntry?.finishedTimestamp || null
-          const csvUser = { ...user }
-          delete csvUser.latestLogEntry
-          return csvUser
-        })
-        return { status: 200, jsonBody: csvUsers }
+        // Regular user, does not belong to school
+        if (!administrationStats.some(stat => stat.navn === user.companyName)) {
+          administrationStats.push({ // Check if stats for company is there already, if not, add it
+            ansatt: {
+              antall: 0,
+              max: 0,
+              fullføringsgrad: null
+            },
+            elev: {
+              antall: 0,
+              max: 0,
+              fullføringsgrad: null
+            },
+            navn: user.companyName
+          })
+        }
+        const administrationStat = administrationStats.find(stat => stat.navn === user.companyName)
+        if (user.userType === 'ansatt') {
+          administrationStat.ansatt.max++
+          if (user.latestLogEntry) {
+            administrationStat.ansatt.antall++
+          }
+        }
+        if (user.userType === 'elev') {
+          administrationStat.elev.max++
+          if (user.latestLogEntry) {
+            administrationStat.elev.antall++
+          }
+        }
+      })
+
+      // Calculate percentage for all stats, and wipe unecessary data (where students is 0)
+      administrationStats.forEach(stat => {
+        stat.ansatt.fullføringsgrad = Number(((stat.ansatt.antall / stat.ansatt.max) * 100).toFixed(2))
+        stat.elev.fullføringsgrad = Number(((stat.elev.antall / stat.elev.max) * 100).toFixed(2))
+        if (stat.elev.max === 0) stat.elev = null // don't need it
+      })
+      schoolStats.forEach(stat => {
+        stat.ansatt.fullføringsgrad = Number(((stat.ansatt.antall / stat.ansatt.max) * 100).toFixed(2))
+        stat.elev.fullføringsgrad = Number(((stat.elev.antall / stat.elev.max) * 100).toFixed(2))
+        if (stat.elev.max === 0) stat.elev = null // don't need it
+      })
+
+      // Create csv data source
+      const csvUsers = users.map(user => {
+        user.onboardedTimestamp = user.latestLogEntry?.finishedTimestamp || null
+        const csvUser = { ...user }
+        delete csvUser.latestLogEntry
+        return csvUser
+      })
+
+      return {
+        status: 200,
+        jsonBody: {
+          fullStats: [...schoolStats, ...administrationStats],
+          schoolStats,
+          administrationStats,
+          csvUsers
+        }
       }
     } catch (error) {
       logger('error', ['Failed when fetching stats', error.response?.data || error.stack || error.toString()], context)
