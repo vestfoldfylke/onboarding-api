@@ -13,7 +13,7 @@ app.http('EntraMfaAuth', {
   methods: ['POST'],
   authLevel: 'function',
   handler: async (request, context) => {
-    const logPrefix = 'EntraMfaAuth'
+    let logPrefix = 'EntraMfaAuth'
     logger('info', [logPrefix, 'New request'], context)
     // Validate request body
     const { code, state } = await request.json()
@@ -31,9 +31,12 @@ app.http('EntraMfaAuth', {
     // Check that state exist in cache (originates from authorization)
     const checks = stateCache.get(state)
     if (!checks) {
-      logger('warn', [logPrefix, 'The state sent by user does not match any state in state cache - is someone trying to be smart?'], context)
+      logger('warn', [logPrefix, `The state "${state}" (logEntryId) sent by user does not match any state in state cache - user was probs not fast enough?`], context)
       return { status: 500, jsonBody: { message: 'Du har brukt for lang tid, rykk tilbake til start' } }
     }
+
+    logPrefix += ` - logEntryId: ${state}`
+
     try {
       const entraClient = getEntraMfaClient()
 

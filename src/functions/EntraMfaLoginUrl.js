@@ -34,8 +34,8 @@ app.http('EntraMfaLoginUrl', {
           codeChallenge: challenge,
           codeChallengeMethod: 'S256'
         })
-
-        stateCache.set(state, { verifier }, 600)
+        
+        stateCache.set(state, { verifier }, 1200)
 
         logger('info', [logPrefix, 'Successfully got entra auth stats url, responding to user'], context)
         return { status: 200, jsonBody: { loginUrl: authUrl } }
@@ -69,7 +69,7 @@ app.http('EntraMfaLoginUrl', {
         loginHint: queryLoginHint || undefined
       })
 
-      stateCache.set(state, { verifier }, 600)
+      stateCache.set(state, { verifier }, 1200)
 
       logger('info', [logPrefix, 'Successfully got entra auth url, responding to user'], context)
       return { status: 200, jsonBody: { loginUrl: authUrl } }

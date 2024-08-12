@@ -137,3 +137,5 @@ local.settings*.json
 # Dev files
 ignore/
 src/functions/Test.js
+src/functions/SetState.js
+src/functions/GetState.js
