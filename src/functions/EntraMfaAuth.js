@@ -31,7 +31,7 @@ app.http('EntraMfaAuth', {
     // Check that state exist in cache (originates from authorization)
     const checks = stateCache.get(state)
     if (!checks) {
-      logger('warn', [logPrefix, `The state "${state}" (logEntryId) sent by user does not match any state in state cache - user was probs not fast enough?`], context)
+      logger('warn', [logPrefix, `The state "${state}" (logEntryId) sent by user does not match any state in state cache - user was probs not fast enough?`, `ip: ${request.headers.get('X-Forwarded-For') || 'ukjent'}`, `user-agent: ${request.headers.get('user-agent') || 'ukjent'}`], context)
       return { status: 500, jsonBody: { message: 'Du har brukt for lang tid, rykk tilbake til start' } }
     }
 
