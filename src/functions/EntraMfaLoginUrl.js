@@ -34,7 +34,7 @@ app.http('EntraMfaLoginUrl', {
           codeChallenge: challenge,
           codeChallengeMethod: 'S256'
         })
-        
+
         stateCache.set(state, { verifier }, 1200)
 
         logger('info', [logPrefix, 'Successfully got entra auth stats url, responding to user'], context)

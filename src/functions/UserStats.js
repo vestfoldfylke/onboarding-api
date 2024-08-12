@@ -13,7 +13,7 @@ app.http('UserStats', {
   handler: async (request, context) => {
     let logPrefix = 'UserStats'
     logger('info', [logPrefix, 'New request'], context)
-    
+
     // Validate request body
     const { code, state } = await request.json()
     if (!(code && state)) {
