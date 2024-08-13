@@ -2,7 +2,7 @@ const { app } = require('@azure/functions')
 const { getStateCache } = require('../state-cache')
 const { logger } = require('@vtfk/logger')
 const { getEntraMfaClient } = require('../entra-client')
-const { MONGODB, ENTRA_MFA } = require('../../config')
+const { MONGODB, ENTRA_MFA, LOG_IP_AND_USER_AGENT } = require('../../config')
 const { getMongoClient } = require('../mongo-client')
 const { ObjectId } = require('mongodb')
 const { createMfaStat } = require('../stats')
@@ -30,11 +30,15 @@ app.http('EntraMfaAuth', {
 
     const logEntryId = state.substring(3)
     logPrefix += ` - logEntryId: ${logEntryId}`
-  
+
     // Check that state exist in cache (originates from authorization)
     const checks = stateCache.get(state)
     if (!checks) {
-      logger('warn', [logPrefix, `The state "${state}" (logEntryId) sent by user does not match any state in state cache - user was probs not fast enough?`, `ip: ${request.headers.get('X-Forwarded-For') || 'ukjent'}`, `user-agent: ${request.headers.get('user-agent') || 'ukjent'}`], context)
+      if (LOG_IP_AND_USER_AGENT) {
+        logger('warn', [logPrefix, `The state "${state}" (logEntryId) sent by user does not match any state in state cache - user was probs not fast enough?`, `ip: ${request.headers.get('X-Forwarded-For') || 'ukjent'}`, `user-agent: ${request.headers.get('user-agent') || 'ukjent'}`], context)
+      } else {
+        logger('warn', [logPrefix, `The state "${state}" (logEntryId) sent by user does not match any state in state cache - user was probs not fast enough. CHOO CHOOO!`], context)
+      }
       return { status: 500, jsonBody: { message: 'Du har brukt for lang tid, rykk tilbake til start' } }
     }
 

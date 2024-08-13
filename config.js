@@ -70,5 +70,6 @@ module.exports = {
     DEMO_USERS: (process.env.DEMO_MODE_DEMO_USERS && JSON.parse(process.env.DEMO_MODE_DEMO_USERS)) || false
   },
   BAD_WORDS: (process.env.BAD_WORDS && process.env.BAD_WORDS.split(',')) || [],
-  EXCLUDED_COMPANIES: (process.env.EXCLUDED_COMPANIES && process.env.EXCLUDED_COMPANIES.split(',')) || []
+  EXCLUDED_COMPANIES: (process.env.EXCLUDED_COMPANIES && process.env.EXCLUDED_COMPANIES.split(',')) || [],
+  LOG_IP_AND_USER_AGENT: (process.env.LOG_IP_AND_USER_AGENT && process.env.LOG_IP_AND_USER_AGENT === 'true') || false
 }
