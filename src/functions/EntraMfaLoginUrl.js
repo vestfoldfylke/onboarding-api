@@ -55,7 +55,7 @@ app.http('EntraMfaLoginUrl', {
     try {
       const entraClient = getEntraMfaClient()
 
-      const state = logEntryId
+      const state = `mfa${logEntryId}`
 
       const { verifier, challenge } = await cryptoProvider.generatePkceCodes()
 

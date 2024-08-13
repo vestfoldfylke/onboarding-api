@@ -24,7 +24,7 @@ app.http('EntraPwdLoginUrl', {
     try {
       const entraClient = getEntraPwdClient()
 
-      const state = logEntryId
+      const state = `pwd${logEntryId}`
 
       const { verifier, challenge } = await cryptoProvider.generatePkceCodes()
 

@@ -22,10 +22,13 @@ app.http('EntraPwdAuth', {
     }
 
     // Verify type as well, just for extra credits
-    if ([code, state].some(param => typeof param !== 'string')) {
-      logger('warn', [logPrefix, 'Someone called EntraPwdAuth without code, and state as strings - is someone trying to hack us?'], context)
+    if ([code, state].some(param => typeof param !== 'string') || !state.startsWith('pwd')) {
+      logger('warn', [logPrefix, 'Someone called EntraPwdAuth without code, and state as strings, or state is not correct - is someone trying to hack us?'], context)
       return { status: 400, jsonBody: { message: 'Du har glemt at state, og code skal være string...' } }
     }
+
+    const logEntryId = state.substring(3)
+    logPrefix += ` - logEntryId: ${logEntryId}`
 
     // Check that state exist in cache (originates from authorization)
     const checks = stateCache.get(state)
@@ -33,8 +36,6 @@ app.http('EntraPwdAuth', {
       logger('warn', [logPrefix, `The state "${state}" (logEntryId) sent by user does not match any state in state cache - orker itj mer`, `ip: ${request.headers.get('X-Forwarded-For') || 'ukjent'}`, `user-agent: ${request.headers.get('user-agent') || 'ukjent'}`], context)
       return { status: 500, jsonBody: { message: 'Du har brukt for lang tid, rykk tilbake til start' } }
     }
-
-    logPrefix += ` - logEntryId: ${state}`
 
     try {
       const entraClient = getEntraPwdClient()
@@ -54,7 +55,6 @@ app.http('EntraPwdAuth', {
       const mongoClient = await getMongoClient()
       const collection = mongoClient.db(MONGODB.DB_NAME).collection(MONGODB.LOG_COLLECTION)
 
-      const logEntryId = state
       const logEntry = await collection.findOne({ _id: ObjectId.createFromHexString(logEntryId) })
       if (!logEntry) throw new Error('Could not find a corresponding logEntry for this state, restart the process from the client')
       logger('info', [logPrefix, 'Found corresponding logEntry with state/ObjectId - verifying user, and updating logEntry'])
