@@ -269,8 +269,13 @@ app.http('ResetPassword', {
     logger('info', [logPrefix, 'Reset password is okey dokey, sending sms to user'], context)
     // Send password on sms
     try {
-      const message = user.newPassword
       user.phoneNumber = fixPhoneNumber(user.phoneNumber)
+    } catch (error) {
+      const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Vi kan ikke sende sms til nummeret du har registrert i kontakt- og reservasjons-registeret. Nummeret må starte på +47 eller 0047.', status: 500, logPrefix }, context)
+      return { status, jsonBody }
+    }
+    try {
+      const message = user.newPassword
       await sendSms(user.phoneNumber, message)
       logEntry.sms = {
         phoneNumber: user.phoneNumber,
