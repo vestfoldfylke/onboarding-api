@@ -55,33 +55,33 @@ app.http('VerifyUser', {
     // Validate request body
     const { code, iss, state } = await request.json()
     if (!(code && iss && state)) {
-      logger('warn', ['Someone called VerifyUser without code, iss, and state in body - is someone trying to hack us?'], context)
+      logger('warn', ['VerifyUser', 'Someone called VerifyUser without code, iss, and state in body - is someone trying to hack us?'], context)
       return { status: 400, jsonBody: { message: 'Du har glemt state og iss og code i body da' } }
     }
 
     // Verify type as well, just for extra credits
     if ([code, iss, state].some(param => typeof param !== 'string')) {
-      logger('warn', ['Someone called VerifyUser without code, iss, and state as strings - is someone trying to hack us?'], context)
+      logger('warn', ['VerifyUser', 'Someone called VerifyUser without code, iss, and state as strings - is someone trying to hack us?'], context)
       return { status: 400, jsonBody: { message: 'Du har glemt at state, iss, og code skal være string...' } }
     }
 
     // Check that state exist in cache (originates from authorization)
     const checks = stateCache.get(state)
     if (!checks) {
-      logger('warn', ['The state sent by user does not match any state in state cache - is someone trying to be smart?'], context)
+      logger('warn', ['VerifyUser', `The state "${state}" sent by user does not match any state in state cache - is someone trying to be smart?`], context)
       return { status: 500, jsonBody: { message: 'Du har brukt for lang tid, rykk tilbake til start' } }
     }
 
     // Check state param for userType (startswith)
     const userType = state.startsWith('ansatt') ? 'ansatt' : state.startsWith('elev') ? 'elev' : null
     if (!userType) {
-      logger('warn', ['The state sent by user does not start with "ansatt" or "elev", either someone is klussing, or we developers are idiots (we are anyways..)'], context)
+      logger('warn', ['VerifyUser', 'The state sent by user does not start with "ansatt" or "elev", either someone is klussing, or we developers are idiots (we are anyways..)'], context)
       return { status: 400, jsonBody: { message: 'Hva slags state er det du har fått til å sende inn? Den er ikke gyldig hvertfall' } }
     }
 
     const correctAction = state.startsWith(`${userType}verifyuser`)
     if (!correctAction) {
-      logger('warn', ['The state sent by user does not start with correct action after userType, seither someone is klussing, or we developers are idiots (we are anyways..)'], context)
+      logger('warn', ['VerifyUser', 'The state sent by user does not start with correct action after userType, seither someone is klussing, or we developers are idiots (we are anyways..)'], context)
       return { status: 400, jsonBody: { message: 'Hva slags state er det du har fått til å sende inn? Den er ikke gyldig hvertfall' } }
     }
 
