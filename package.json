@@ -11,7 +11,7 @@
     "@azure/functions": "^4.0.0",
     "@azure/msal-node": "^2.7.0",
     "@vestfoldfylke/msal-token": "^1.0.1",
-    "@vtfk/logger": "^6.2.0",
+    "@vtfk/logger": "^6.2.2",
     "axios": "^1.7.3",
     "mongodb": "^6.6.0",
     "node-cache": "^5.1.2",
