@@ -1,4 +1,4 @@
-const { default: axios } = require('axios')
+const axios = require('axios')
 const { STATISTICS } = require('../config')
 const { name, version } = require('../package.json')
 

@@ -1,4 +1,4 @@
-const { default: axios } = require('axios')
+const axios = require('axios')
 const { SMS } = require('../config')
 
 const sendSms = async (phoneNumber, message) => {

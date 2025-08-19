@@ -1,6 +1,6 @@
 const { getMsalToken } = require('./get-msal-token')
 const { GRAPH, AUTHENTICATION_ADMINISTRATOR } = require('../config')
-const { default: axios } = require('axios')
+const axios = require('axios')
 const { getMsalUserToken } = require('./get-msal-user-token')
 const { generateFriendlyPassword } = require('./generate-password')
 const { logger } = require('@vtfk/logger')

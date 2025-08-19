@@ -1,4 +1,4 @@
-const { default: axios } = require('axios')
+const axios = require('axios')
 const { KRR } = require('../config')
 
 const getKrrPerson = async (ssn) => {
