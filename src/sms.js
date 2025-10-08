@@ -8,9 +8,6 @@ const sendSms = async (phoneNumber, message) => {
     sender: SMS.SENDER
   }
   const { data } = await axios.post(`${SMS.URL}/SendSMS`, payload, { headers: { 'x-functions-key': SMS.KEY } })
-  if (data.logon.toUpperCase() !== 'OK' || data.receivers[phoneNumber].toUpperCase() !== 'OK') {
-    throw new Error(`Something went wrong ${JSON.stringify(data)}`)
-  }
   return data
 }
 
