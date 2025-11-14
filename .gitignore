@@ -139,3 +139,6 @@ ignore/
 src/functions/Test.js
 src/functions/SetState.js
 src/functions/GetState.js
+
+# Rider shit
+/**/*.DotSettings.user
