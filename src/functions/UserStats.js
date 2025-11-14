@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions')
 const { getStateCache } = require('../state-cache')
-const { logger } = require('@vtfk/logger')
+const { logger } = require('@vestfoldfylke/loglady')
 const { getStatisticsClient } = require('../entra-client')
 const { MONGODB, ENTRA_MFA, GRAPH } = require('../../config')
 const { getMongoClient, closeMongoClient } = require('../mongo-client')
@@ -12,25 +12,25 @@ app.http('UserStats', {
   authLevel: 'function',
   handler: async (request, context) => {
     let logPrefix = 'UserStats'
-    logger('info', [logPrefix, 'New request'], context)
+    logger.info('{LogPrefix} - New request', logPrefix)
 
     // Validate request body
     const { code, state } = await request.json()
     if (!(code && state)) {
-      logger('warn', [logPrefix, 'Someone called UserStats without code and state in body - is someone trying to hack us?'], context)
+      logger.warn('{LogPrefix} - Someone called UserStats without code and state in body - is someone trying to hack us?', logPrefix)
       return { status: 400, jsonBody: { message: 'Du har glemt state og code i body da' } }
     }
 
     // Verify type as well, just for extra credits
     if ([code, state].some(param => typeof param !== 'string')) {
-      logger('warn', [logPrefix, 'Someone called UserStats without code, and state as strings - is someone trying to hack us?'], context)
+      logger.warn('{LogPrefix} - Someone called UserStats without code, and state as strings - is someone trying to hack us?', logPrefix)
       return { status: 400, jsonBody: { message: 'Du har glemt at state, og code skal være string...' } }
     }
 
     // Check that state exist in cache (originates from authorization)
     const checks = stateCache.get(state)
     if (!checks) {
-      logger('warn', [logPrefix, 'The state sent by user does not match any state in state cache - is someone trying to be smart?'], context)
+      logger.warn('{LogPrefix} - The state sent by user does not match any state in state cache - is someone trying to be smart?', logPrefix)
       return { status: 500, jsonBody: { message: 'Du har brukt for lang tid, rykk tilbake til start' } }
     }
     try {
@@ -49,12 +49,12 @@ app.http('UserStats', {
       logPrefix = logPrefix + ` - ${tokenResponse.idTokenClaims.preferred_username}`
 
       // Check stats-role
-      logger('info', [logPrefix, 'Validating stats role'], context)
+      logger.info('{LogPrefix} - Validating stats role', logPrefix)
       if (!tokenResponse.idTokenClaims.roles || !tokenResponse.idTokenClaims.roles.includes('Stats.Read')) {
-        logger('warn', [logPrefix, 'Missing required stats role for this endpoint'], context)
+        logger.warn('{LogPrefix} - Missing required stats role for this endpoint', logPrefix)
         return { status: 401, jsonBody: { message: 'Du mangler rettigheter for å hente data her. Ta kontakt med systemansvarlig om du trenger data.' } }
       }
-      logger('info', [logPrefix, 'stats role validated'], context)
+      logger.info('{LogPrefix} - stats role validated', logPrefix)
 
       // User has admin-role
       /*
@@ -64,13 +64,13 @@ app.http('UserStats', {
       const mongoClient = await getMongoClient()
       let users
       try {
-        logger('info', ['Fetching users collection'], context)
+        logger.info('Fetching users collection')
         const usersCollection = mongoClient.db(MONGODB.DB_NAME).collection(MONGODB.USERS_COLLECTION)
         users = await usersCollection.find({}).toArray()
-        logger('info', [`Got ${users.length} users from users collection`], context)
+        logger.info('Got {UsersLength} users from users collection', users.length)
       } catch (error) {
         if (error.toString().startsWith('MongoTopologyClosedError')) {
-          logger('warn', 'Oh no, topology is closed! Closing client')
+          logger.warn('Oh no, topology is closed! Closing client')
           closeMongoClient()
         }
         throw error
@@ -217,7 +217,7 @@ app.http('UserStats', {
         }
       }
     } catch (error) {
-      logger('error', ['Failed when fetching stats', error.response?.data || error.stack || error.toString()], context)
+      logger.errorException(error, 'Failed when fetching stats. Error: {@Error}', error.response?.data || error.stack || error.toString())
       return { status: 500, jsonBody: { message: 'Failed when fetching stats from db', data: error.response?.data || error.stack || error.toString() } }
     }
   }

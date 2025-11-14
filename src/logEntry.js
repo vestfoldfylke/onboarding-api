@@ -1,4 +1,4 @@
-const { logger } = require('@vtfk/logger')
+const { logger } = require('@vestfoldfylke/loglady')
 const { MONGODB } = require('../config')
 const { getMongoClient, closeMongoClient } = require('./mongo-client')
 
@@ -118,7 +118,7 @@ const insertLogEntry = async (logEntry) => {
     return insertedId
   } catch (error) {
     if (error.toString().startsWith('MongoTopologyClosedError')) {
-      logger('warn', 'Oh no, topology is closed! Closing client')
+      logger.warn('Oh no, topology is closed! Closing client')
       closeMongoClient()
     }
     throw error
@@ -135,13 +135,13 @@ const updateLogEntry = async (objectId, logEntry, context) => {
     const mongoClient = await getMongoClient()
     const collection = mongoClient.db(MONGODB.DB_NAME).collection(MONGODB.LOG_COLLECTION)
     await collection.findOneAndReplace({ _id: objectId }, logEntry)
-    logger('info', ['LogEntry successfully updated (replaced) in mongodb'], context)
+    logger.info('LogEntry successfully updated (replaced) in mongodb')
   } catch (error) {
     if (error.toString().startsWith('MongoTopologyClosedError')) {
-      logger('warn', 'Oh no, topology is closed! Closing client')
+      logger.warn('Oh no, topology is closed! Closing client')
       closeMongoClient()
     }
-    logger('error', ['Oh no, logEntry was not updated, this will be lost, do not tell anyone...', error.response?.data || error.stack || error.toString()], context)
+    logger.errorException(error, 'Oh no, logEntry was not updated, this will be lost, do not tell anyone... Error: {@Error}', error.response?.data || error.stack || error.toString())
   }
 }
 

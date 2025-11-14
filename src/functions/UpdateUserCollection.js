@@ -1,16 +1,16 @@
 const { app } = require('@azure/functions')
-const { logger } = require('@vtfk/logger')
+const { logger } = require('@vestfoldfylke/loglady')
 const { updateUsers } = require('../schedules/update-users')
 
 app.timer('UpdateUserCollection', {
   schedule: '0 2 * * *', // Kl 02:00 om natta
   handler: async (myTimer, context) => {
-    logger('info', ['UpdateUserCollection - new run'], context)
+    logger.info('UpdateUserCollection - new run')
     try {
       const updateResult = await updateUsers(context)
-      logger('info', [`UpdateUserCollection - finished running - result - ${updateResult}`], context)
+      logger.info('UpdateUserCollection - finished running - UpdateResult: {UpdateResult}', updateResult)
     } catch (error) {
-      logger('error', ['UpdateUserCollection - failed when updating user collection', error.response?.data || error.stack || error.toString()], context)
+      logger.errorException(error, 'UpdateUserCollection - failed when updating user collection. Error: {@Error}', error.response?.data || error.stack || error.toString())
     }
   }
 })

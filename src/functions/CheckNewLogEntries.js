@@ -1,16 +1,17 @@
 const { app } = require('@azure/functions')
 const { checkNewLogEntries } = require('../schedules/check-new-log-entries')
-const { logger } = require('@vtfk/logger')
+const { logger } = require('@vestfoldfylke/loglady')
 
 app.timer('CheckNewLogEntries', {
   schedule: '*/20 * * * *', // Hvert 20 minutt
   handler: async (myTimer, context) => {
-    logger('info', ['CheckNewLogEntries - new run'], context)
+    logger.info('CheckNewLogEntries - new run')
     try {
+      // TODO: Huh? Jørgen. Why get and log result when method is void?
       const updateResult = await checkNewLogEntries(context)
-      logger('info', [`CheckNewLogEntries - finished running - result - ${updateResult}`], context)
+      logger.info('CheckNewLogEntries - finished running - result - {UpdateResult}', updateResult)
     } catch (error) {
-      logger('error', ['CheckNewLogEntries - failed when updating user collection', error.response?.data || error.stack || error.toString()], context)
+      logger.errorException(error, 'CheckNewLogEntries - failed when updating user collection: {@Error}', error.response?.data || error.stack || error.toString())
     }
   }
 })

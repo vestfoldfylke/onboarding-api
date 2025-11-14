@@ -1,5 +1,5 @@
 const { getAccessToken } = require('@vestfoldfylke/msal-token')
-const { logger } = require('@vtfk/logger')
+const { logger } = require('@vestfoldfylke/loglady')
 const NodeCache = require('node-cache')
 const { APPREG } = require('../config')
 
@@ -17,11 +17,11 @@ const getMsalToken = async (config) => {
 
   const cachedToken = cache.get(cacheKey)
   if (!config.forceNew && cachedToken) {
-    // logger('info', ['getMsalToken', 'found valid token in cache, will use that instead of fetching new'])
+    // logger.info('getMsalToken - found valid token in cache, will use that instead of fetching new')
     return cachedToken.substring(0, cachedToken.length - 2)
   }
 
-  logger('info', ['getMsalToken', 'no token in cache, fetching new from Microsoft'])
+  logger.info('getMsalToken - no token in cache, fetching new from Microsoft')
   const clientConfig = {
     clientId: APPREG.CLIENT_ID,
     tenantId: APPREG.TENANT_ID,
@@ -31,9 +31,9 @@ const getMsalToken = async (config) => {
 
   const token = await getAccessToken(clientConfig)
   const expires = Math.floor((token.expiresOn.getTime() - new Date()) / 1000)
-  logger('info', ['getMsalToken', `Got token from Microsoft, expires in ${expires} seconds.`])
+  logger.info('getMsalToken - Got token from Microsoft, expires in {Expires} seconds.', expires)
   cache.set(cacheKey, `${token.accessToken}==`, expires) // Haha, just to make the cached token not directly usable
-  logger('info', ['getMsalToken', 'Token stored in cache'])
+  logger.info('getMsalToken - Token stored in cache')
 
   return token.accessToken
 }

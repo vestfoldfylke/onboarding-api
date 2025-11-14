@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions')
 const { getStateCache } = require('../state-cache')
-const { logger } = require('@vtfk/logger')
+const { logger } = require('@vestfoldfylke/loglady')
 const { getEntraPwdClient } = require('../entra-client')
 const { CryptoProvider } = require('@azure/msal-node')
 const { ENTRA_PWD } = require('../../config')
@@ -14,10 +14,10 @@ app.http('EntraPwdLoginUrl', {
   authLevel: 'function',
   handler: async (request, context) => {
     const logPrefix = 'EntraPwdLoginUrl'
-    logger('info', [logPrefix, 'New request'], context)
+    logger.info('{LogPrefix} - New request', logPrefix)
     const logEntryId = request.query.get('log_entry_id')
     if (!logEntryId) {
-      logger('warn', [logPrefix, 'No log_entry_id in query params, no no, not allowed'])
+      logger.warn('{LogPrefix} - No log_entry_id in query params, no no, not allowed', logPrefix)
       return { status: 400, jsonBody: { message: 'Missing log_entry_id query param', data: null } }
     }
     const queryLoginHint = request.query.get('login_hint')
@@ -40,10 +40,10 @@ app.http('EntraPwdLoginUrl', {
 
       stateCache.set(state, { verifier }, 1200)
 
-      logger('info', [logPrefix, 'Successfully got entra auth url, responding to user'], context)
+      logger.info('{LogPrefix} - Successfully got entra auth url, responding to user', logPrefix)
       return { status: 200, jsonBody: { loginUrl: authUrl } }
     } catch (error) {
-      logger('error', [logPrefix, 'Failed when trying to get entra auth url', error.response?.data || error.stack || error.toString()], context)
+      logger.errorException(error, '{LogPrefix} - Failed when trying to get entra auth url: Error: {@Error}', logPrefix, error.response?.data || error.stack || error.toString())
       return { status: 500, jsonBody: { message: 'Failed when trying to get entra auth url', data: error.response?.data || error.stack || error.toString() } }
     }
   }
