@@ -5,16 +5,16 @@ const { logger } = require('@vestfoldfylke/loglady')
 app.http('IdPortenLogoutUrl', {
   methods: ['GET'],
   authLevel: 'function',
-  handler: async (request, context) => {
+  handler: async (_, __) => {
     try {
-      logger.info('New request for logouturl')
+      logger.info('New request for logoutUrl')
       const idPortenClient = await getIdPortenClient()
       const logoutUrl = idPortenClient.endSessionUrl()
       logger.info('Successfully got id-porten logout url, responding to user')
       return { status: 200, jsonBody: { logoutUrl } }
     } catch (error) {
       logger.errorException(error, 'Failed when trying to get id-porten logout url. Error: {@Error}', error.response?.data || error.stack || error.toString())
-      return { status: 500, jsonBody: { message: 'Failed when trying to get id-porten logoout url', data: error.response?.data || error.stack || error.toString() } }
+      return { status: 500, jsonBody: { message: 'Failed when trying to get id-porten logout url', data: error.response?.data || error.stack || error.toString() } }
     }
   }
 })

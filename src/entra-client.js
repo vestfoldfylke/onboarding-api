@@ -3,7 +3,7 @@ const msal = require('@azure/msal-node')
 
 let entraPwdInstance = null
 let entraMfaInstance = null
-let entraStatisitcsInstance = null
+let entraStatisticsInstance = null
 
 /**
  *
@@ -46,9 +46,9 @@ const getEntraMfaClient = () => {
  * @returns {import('@azure/msal-node').ConfidentialClientApplication} entraClient
  */
 const getStatisticsClient = () => {
-  if (entraStatisitcsInstance) return entraStatisitcsInstance
+  if (entraStatisticsInstance) return entraStatisticsInstance
 
-  entraStatisitcsInstance = new msal.ConfidentialClientApplication({
+  entraStatisticsInstance = new msal.ConfidentialClientApplication({
     auth: {
       clientId: ENTRA_STATISTICS.CLIENT_ID,
       authority: `https://login.microsoftonline.com/${ENTRA_STATISTICS.TENANT_ID}`,
@@ -56,7 +56,7 @@ const getStatisticsClient = () => {
     }
   })
 
-  return entraStatisitcsInstance
+  return entraStatisticsInstance
 }
 
 module.exports = { getEntraPwdClient, getEntraMfaClient, getStatisticsClient }

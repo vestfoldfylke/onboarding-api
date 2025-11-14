@@ -11,7 +11,7 @@ const stateCache = getStateCache()
 app.http('EntraPwdAuth', {
   methods: ['POST'],
   authLevel: 'function',
-  handler: async (request, context) => {
+  handler: async (request, _) => {
     let logPrefix = 'EntraPwdAuth'
     logger.info(`{LogPrefix} - New request`, logPrefix)
     // Validate request body

@@ -10,7 +10,7 @@ const stateCache = getStateCache()
 app.http('UserStats', {
   methods: ['POST'],
   authLevel: 'function',
-  handler: async (request, context) => {
+  handler: async (request, _) => {
     let logPrefix = 'UserStats'
     logger.info('{LogPrefix} - New request', logPrefix)
 
@@ -187,7 +187,7 @@ app.http('UserStats', {
         }
       })
 
-      // Calculate percentage for all stats, and wipe unecessary data (where students is 0)
+      // Calculate percentage for all stats, and wipe unnecessary data (where students is 0)
       administrationStats.forEach(stat => {
         stat.ansatt.fullføringsgrad = Number(((stat.ansatt.antall / stat.ansatt.max) * 100).toFixed(2))
         stat.elev.fullføringsgrad = Number(((stat.elev.antall / stat.elev.max) * 100).toFixed(2))

@@ -12,7 +12,7 @@ const stateCache = getStateCache()
 app.http('EntraMfaAuth', {
   methods: ['POST'],
   authLevel: 'function',
-  handler: async (request, context) => {
+  handler: async (request, _) => {
     let logPrefix = 'EntraMfaAuth'
     logger.info('{LogPrefix} - New request', logPrefix)
     // Validate request body
@@ -82,7 +82,7 @@ app.http('EntraMfaAuth', {
       logger.info('{LogPrefix} - Creating stats element for bragging purposes', logPrefix)
       try {
         await createMfaStat(tokenResponse.idTokenClaims.oid, logEntryId)
-        logger.info('{LogPrefix} - Succesfully created stats element for bragging purposes', logPrefix)
+        logger.info('{LogPrefix} - Successfully created stats element for bragging purposes', logPrefix)
       } catch (error) {
         logger.warn(`{LogPrefix} - Whops, failed when creating stats element... This one will not be counted (logEntryId - {LogEntryId}). Error: {@Error}`, logPrefix, logEntryId, error.response?.data || error.stack || error.toString())
       }

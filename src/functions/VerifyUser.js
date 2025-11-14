@@ -24,7 +24,7 @@ const maskSsn = (ssn) => {
  *
  * @returns
  */
-const handleError = async (error, context) => {
+const handleError = async (error) => {
   if (!error.error) throw new Error('Missing required parameter "error.error"')
   if (!error.logEntry) throw new Error('Missing required parameter "error.logEntry"')
   if (!error.logEntryId) throw new Error('Missing required parameter "error.logEntryId"')
@@ -157,7 +157,7 @@ app.http('VerifyUser', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'idPorten', logEntry, logEntryId, message: 'Failed when trying to get tokens from ID-porten', status: 500 }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'idPorten', logEntry, logEntryId, message: 'Failed when trying to get tokens from ID-porten', status: 500 })
       return { status, jsonBody }
     }
 
@@ -175,7 +175,7 @@ app.http('VerifyUser', {
       }
       // Hvis ingen bruker returner vi tidlig med beskjed
       if (!entraUser.id) {
-        const { status, jsonBody } = await handleError({ error: 'Could not find entraID user on ssn', jobName: 'entraId', logEntry, logEntryId, message: 'Fant ingen bruker hos oss med ditt fødselsnummer, ta kontakt med servicedesk eller din leder dersom du mener dette er feil.', status: 404, logPrefix }, context)
+        const { status, jsonBody } = await handleError({ error: 'Could not find entraID user on ssn', jobName: 'entraId', logEntry, logEntryId, message: 'Fant ingen bruker hos oss med ditt fødselsnummer, ta kontakt med servicedesk eller din leder dersom du mener dette er feil.', status: 404, logPrefix })
         return { status, jsonBody }
       }
       if (DEMO_MODE.ENABLED && DEMO_USER_OVERRIDE?.DEMO_UPN) {
@@ -198,7 +198,7 @@ app.http('VerifyUser', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'entraId', logEntry, logEntryId, message: 'Feilet ved henting av bruker - prøv igjen senere, eller kontakt servicesk', status: 500, logPrefix }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'entraId', logEntry, logEntryId, message: 'Feilet ved henting av bruker - prøv igjen senere, eller kontakt servicesk', status: 500, logPrefix })
       return { status, jsonBody }
     }
 
@@ -208,7 +208,7 @@ app.http('VerifyUser', {
     try {
       await updateLogEntry(logEntryId, logEntry)
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'updateLogEntry', logEntry, logEntryId, message: 'Feilet ved oppdatering av element i database', status: 500, logPrefix }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'updateLogEntry', logEntry, logEntryId, message: 'Feilet ved oppdatering av element i database', status: 500, logPrefix })
       return { status, jsonBody }
     }
 

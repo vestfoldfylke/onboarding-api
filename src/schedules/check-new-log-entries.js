@@ -6,11 +6,11 @@ Oppdater også i den store fine users-collection
 
 const { logger } = require('@vestfoldfylke/loglady')
 const { getMongoClient } = require('../mongo-client')
-const { getAuthenticationMethods, getEntraUser } = require('../call-graph')
+const { /*getAuthenticationMethods,*/ getEntraUser } = require('../call-graph')
 const { MONGODB, GRAPH } = require('../../config')
 const { repackUser } = require('./update-users')
 
-const checkNewLogEntries = async (context) => {
+const checkNewLogEntries = async () => {
   const mongoClient = await getMongoClient()
   const logCollection = mongoClient.db(MONGODB.DB_NAME).collection(MONGODB.LOG_COLLECTION)
   const userCollection = mongoClient.db(MONGODB.DB_NAME).collection(MONGODB.USERS_COLLECTION)
@@ -24,6 +24,7 @@ const checkNewLogEntries = async (context) => {
 
   const checkedUsers = []
   for (const logEntry of successfulLogEntries) {
+    // TODO: Jørgen : No need to check this as this will always be false since all pushes further down has been commented out
     if (checkedUsers.includes(logEntry.entraId.id)) continue // Already checked
     const entraUser = logEntry.entraId
 
@@ -40,7 +41,7 @@ const checkNewLogEntries = async (context) => {
     const authenticationMethods = await getAuthenticationMethods(entraUser.id)
     logger.info('{LogPrefix} - Found {AuthenticationMethodLength} authentication methods', logPrefix, authenticationMethods.value.length)
 
-    // Check if we have passwordmethod
+    // Check if we have password method
     const passwordMethod = authenticationMethods.value.find(method => method['@odata.type'] === '#microsoft.graph.passwordAuthenticationMethod')
     if (!passwordMethod) {
       // Password not there yet

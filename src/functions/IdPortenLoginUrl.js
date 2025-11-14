@@ -16,8 +16,8 @@ const computeCodeChallengeFromVerifier = async (verifier) => {
 app.http('IdPortenLoginUrl', {
   methods: ['GET'],
   authLevel: 'function',
-  handler: async (request, context) => {
-    logger.info('New request for loginurl')
+  handler: async (request, _) => {
+    logger.info('New request for loginUrl')
     const userType = request.query.get('user_type')
     if (!userType || !['ansatt', 'elev'].includes(userType)) {
       logger.warn('Request does not contain query param user_type with "ansatt" eller "elev" :O')

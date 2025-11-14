@@ -23,7 +23,7 @@ const repackUser = (entraUser, user, userType) => {
   }
 }
 
-const updateUsers = async (context) => {
+const updateUsers = async () => {
   // Get all users from last run
   const mongoClient = await getMongoClient()
 
@@ -52,7 +52,7 @@ const updateUsers = async (context) => {
   const students = await getAllStudents()
   logger.info('Got entraId users')
 
-  // Initaite array currentUsers
+  // Initiate array currentUsers
   const currentUsers = []
 
   // Go through all employees
@@ -82,7 +82,7 @@ const updateUsers = async (context) => {
   }
 
   // Swap data in mongodb
-  // First get all collectionnames
+  // First get all collection names
   const collectionNames = (await mongoClient.db(MONGODB.DB_NAME).listCollections().toArray()).map(coll => coll.name)
 
   // Setup collection names for easy handling

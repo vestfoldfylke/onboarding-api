@@ -46,7 +46,7 @@ const fixPhoneNumber = (phoneNumber) => {
  *
  * @returns
  */
-const handleError = async (error, context) => {
+const handleError = async (error) => {
   if (!error.error) {
     throw new Error('Missing required parameter "error.error"')
   }
@@ -61,7 +61,7 @@ const handleError = async (error, context) => {
   }
 
   if (!error.status) {
-    error.status = 500
+    error.status = '500'
   }
   if (!error.logPrefix) {
     error.logPrefix = ''
@@ -110,7 +110,7 @@ app.http('ResetPassword', {
       return { status: 500, jsonBody: { message: 'Du har brukt for lang tid, rykk tilbake til start' } }
     }
 
-    // Check state param for userType (startswith)
+    // Check state param for userType (startsWith)
     const userType = state.startsWith('ansatt') ? 'ansatt' : state.startsWith('elev') ? 'elev' : null
     if (!userType) {
       logger.warn('ResetPassword - The state sent by user does not start with "ansatt" or "elev", either someone is klussing, or we developers are idiots (we are anyways..)')
@@ -195,7 +195,7 @@ app.http('ResetPassword', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'idPorten', logEntry, logEntryId, message: 'Failed when trying to get tokens from ID-porten', status: 500 }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'idPorten', logEntry, logEntryId, message: 'Failed when trying to get tokens from ID-porten', status: 500 })
       return { status, jsonBody }
     }
 
@@ -213,7 +213,7 @@ app.http('ResetPassword', {
       }
       // Hvis ingen bruker returner vi tidlig med beskjed
       if (!entraUser.id) {
-        const { status, jsonBody } = await handleError({ error: 'Could not find entraID user on ssn', jobName: 'entraId', logEntry, logEntryId, message: 'Fant ingen bruker hos oss med ditt fødselsnummer, ta kontakt med servicedesk eller din leder dersom du mener dette er feil.', status: 404, logPrefix }, context)
+        const { status, jsonBody } = await handleError({ error: 'Could not find entraID user on ssn', jobName: 'entraId', logEntry, logEntryId, message: 'Fant ingen bruker hos oss med ditt fødselsnummer, ta kontakt med servicedesk eller din leder dersom du mener dette er feil.', status: 404, logPrefix })
         return { status, jsonBody }
       }
       if (DEMO_MODE.ENABLED && DEMO_USER_OVERRIDE?.DEMO_UPN) {
@@ -236,7 +236,7 @@ app.http('ResetPassword', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'entraId', logEntry, logEntryId, message: 'Feilet ved henting av bruker - prøv igjen senere, eller kontakt servicesk', status: 500, logPrefix }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'entraId', logEntry, logEntryId, message: 'Feilet ved henting av bruker - prøv igjen senere, eller kontakt servicesk', status: 500, logPrefix })
       return { status, jsonBody }
     }
 
@@ -247,7 +247,7 @@ app.http('ResetPassword', {
     try {
       const krrPerson = await getKrrPerson(user.ssn)
       if (!krrPerson.kontaktinformasjon?.mobiltelefonnummer) {
-        const { status, jsonBody } = await handleError({ error: 'Found person in KRR, but person has not registered any phone number :( cannot help it', jobName: 'entraId', logEntry, logEntryId, message: 'Fant ikke telefonnummeret ditt i kontakt- og reservasjonsregisteret, så vi får ikke sendt noe sms :( Ta kontakt med servicedesk.', status: 404, logPrefix }, context)
+        const { status, jsonBody } = await handleError({ error: 'Found person in KRR, but person has not registered any phone number :( cannot help it', jobName: 'entraId', logEntry, logEntryId, message: 'Fant ikke telefonnummeret ditt i kontakt- og reservasjonsregisteret, så vi får ikke sendt noe sms :( Ta kontakt med servicedesk.', status: 404, logPrefix })
         return { status, jsonBody }
       }
       if (DEMO_MODE.ENABLED && DEMO_USER_OVERRIDE?.DEMO_PHONE_NUMBER) {
@@ -260,11 +260,11 @@ app.http('ResetPassword', {
         phoneNumber: user.phoneNumber,
         result: {
           status: 'okey-dokey',
-          message: 'Successfully found person and phonenumber in KRR'
+          message: 'Successfully found person and phone number in KRR'
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'krr', logEntry, logEntryId, message: 'Feilet ved henting av mobilnummer fra kontakt- og reservasjons-registeret', status: 500, logPrefix }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'krr', logEntry, logEntryId, message: 'Feilet ved henting av mobilnummer fra kontakt- og reservasjonsregisteret', status: 500, logPrefix })
       return { status, jsonBody }
     }
 
@@ -285,7 +285,7 @@ app.http('ResetPassword', {
         }
       }
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'resetPassword', logEntry, logEntryId, message: 'Feilet ved resetting av passord', status: 500, logPrefix }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'resetPassword', logEntry, logEntryId, message: 'Feilet ved resetting av passord', status: 500, logPrefix })
       return { status, jsonBody }
     }
 
@@ -294,7 +294,7 @@ app.http('ResetPassword', {
     try {
       user.phoneNumber = fixPhoneNumber(user.phoneNumber)
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Vi kan ikke sende sms til nummeret du har registrert i kontakt- og reservasjons-registeret. Nummeret må starte på +47 eller 0047.', status: 500, logPrefix }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Vi kan ikke sende sms til nummeret du har registrert i kontakt- og reservasjonsregisteret. Nummeret må starte på +47 eller 0047.', status: 500, logPrefix })
       return { status, jsonBody }
     }
     try {
@@ -309,7 +309,7 @@ app.http('ResetPassword', {
       }
       logger.info('{LogPrefix} - Sent new password on sms to {PhoneNumber}', logPrefix, maskPhoneNumber(user.phoneNumber))
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Feilet ved sending av sms - vennligst prøv igjen senere', status: 500, logPrefix }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'sms', logEntry, logEntryId, message: 'Feilet ved sending av sms - vennligst prøv igjen senere', status: 500, logPrefix })
       return { status, jsonBody }
     }
 
@@ -317,7 +317,7 @@ app.http('ResetPassword', {
     try {
       await updateLogEntry(logEntryId, logEntry)
     } catch (error) {
-      const { status, jsonBody } = await handleError({ error, jobName: 'updateLogEntry', logEntry, logEntryId, message: 'Feilet ved oppdatering av element i database', status: 500, logPrefix }, context)
+      const { status, jsonBody } = await handleError({ error, jobName: 'updateLogEntry', logEntry, logEntryId, message: 'Feilet ved oppdatering av element i database', status: 500, logPrefix })
       return { status, jsonBody }
     }
 

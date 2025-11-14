@@ -8,7 +8,7 @@ app.timer('CheckNewLogEntries', {
     logger.info('CheckNewLogEntries - new run')
     try {
       // TODO: Huh? Jørgen. Why get and log result when method is void?
-      const updateResult = await checkNewLogEntries(context)
+      const updateResult = await checkNewLogEntries()
       logger.info('CheckNewLogEntries - finished running - result - {UpdateResult}', updateResult)
     } catch (error) {
       logger.errorException(error, 'CheckNewLogEntries - failed when updating user collection: {@Error}', error.response?.data || error.stack || error.toString())

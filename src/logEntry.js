@@ -130,7 +130,7 @@ const insertLogEntry = async (logEntry) => {
  * @param {import('mongodb').ObjectId} objectId
  * @param {Object} logEntry
  */
-const updateLogEntry = async (objectId, logEntry, context) => {
+const updateLogEntry = async (objectId, logEntry) => {
   try {
     const mongoClient = await getMongoClient()
     const collection = mongoClient.db(MONGODB.DB_NAME).collection(MONGODB.LOG_COLLECTION)

@@ -5,8 +5,6 @@ const { getMsalUserToken } = require('./get-msal-user-token')
 const { generateFriendlyPassword } = require('./generate-password')
 const { logger } = require('@vestfoldfylke/loglady')
 
-const aninopel = 'hahaha, nørd'
-
 const sleep = (ms) => {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
@@ -124,7 +122,7 @@ const userSelect = 'id,accountEnabled,displayName,userPrincipalName,jobTitle,sta
  */
 const getAllEmployees = async () => {
   const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
-  let url = `${GRAPH.URL}/v1.0/users/?$select=${userSelect}&$filter=onPremisesExtensionAttributes/extensionAttribute9 ne null and endsWith(userPrincipalName, '${GRAPH.EMPLOYEE_UPN_SUFFIX}')&$count=true&$top=999` // må ha med et filter som sier at du er vanlig ansat, kan bruke onPremisesDistinguishedName contains VFYLKE, om endswith suffix ikke fungerer bra nok
+  let url = `${GRAPH.URL}/v1.0/users/?$select=${userSelect}&$filter=onPremisesExtensionAttributes/extensionAttribute9 ne null and endsWith(userPrincipalName, '${GRAPH.EMPLOYEE_UPN_SUFFIX}')&$count=true&$top=999` // må ha med et filter som sier at du er vanlig ansat, kan bruke onPremisesDistinguishedName contains VFYLKE, om endsWith suffix ikke fungerer bra nok
   let finished = false
   const result = {
     count: 0,

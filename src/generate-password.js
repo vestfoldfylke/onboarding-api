@@ -47,7 +47,7 @@ const generateWord = (numberOfLetters = 5) => {
   const doubleChanceVocals = 'eaio'
   const doubleChanceConsonants = 'rntsld'
 
-  // Set up selections withb double chances
+  // Set up selections with double chances
   const vocals = `${vocalSelection}${doubleChanceVocals}`
   const consonants = `${consonantSelection}${doubleChanceConsonants}`
 
@@ -61,15 +61,15 @@ const generateWord = (numberOfLetters = 5) => {
   const canHaveLAfter = 'cfgkpsz' // cl
   const canHaveJAfter = 'bfgkp' // bj
 
-  // Specific consonant that can follow up other consonants (MUST HAVE at least two letters already)
+  // Specific consonant that can follow-up other consonants (MUST HAVE at least two letters already)
   const canHaveSAfter = 'fgjklmnprtv' // fs
   const canHaveTAfter = 'cfgklnrsz' // ct
   const canHaveNAfter = 'gklmprstvz' // gn
 
-  // Consonants that can follow up specific consonant
+  // Consonants that can follow-up specific consonant
   const canBeAfterS = 'chjklmnptvw'
 
-  // Specific vocals that can follow up other vocals
+  // Specific vocals that can follow-up other vocals
   const canHaveIAfter = 'aeo'
 
   let word = ''
@@ -128,7 +128,6 @@ const generateWord = (numberOfLetters = 5) => {
     if (previousWasVocal === currentWasVocal) {
       forceOppositeType = true
     }
-    continue
   }
   return word
 }
@@ -166,8 +165,7 @@ const generateFriendlyPassword = () => {
     // console.log(`NEW WORD 2 ${secondWord}`)
   }
   const number = generateRandomNumber(numberOfDigits)
-  const password = `${firstWord}-${secondWord}-${number}`
-  return password
+  return `${firstWord}-${secondWord}-${number}`
 }
 
 module.exports = { generatePassword, generateFriendlyPassword }

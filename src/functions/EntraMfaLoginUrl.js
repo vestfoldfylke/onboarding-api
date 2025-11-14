@@ -12,7 +12,7 @@ const cryptoProvider = new CryptoProvider()
 app.http('EntraMfaLoginUrl', {
   methods: ['GET'],
   authLevel: 'function',
-  handler: async (request, context) => {
+  handler: async (request, _) => {
     let logPrefix = 'EntraMfaLoginUrl'
     logger.info('{LogPrefix} - New request', logPrefix)
 
@@ -20,7 +20,7 @@ app.http('EntraMfaLoginUrl', {
     const action = request.query.get('action')
     if (action === 'stats') {
       logPrefix += 'stats'
-      logger.info('Action is present and is "stats", generating stats loginurl')
+      logger.info('Action is present and is "stats", generating stats login url')
       try {
         const entraClient = getStatisticsClient()
 

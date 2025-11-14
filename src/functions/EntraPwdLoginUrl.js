@@ -12,7 +12,7 @@ const cryptoProvider = new CryptoProvider()
 app.http('EntraPwdLoginUrl', {
   methods: ['GET'],
   authLevel: 'function',
-  handler: async (request, context) => {
+  handler: async (request, _) => {
     const logPrefix = 'EntraPwdLoginUrl'
     logger.info('{LogPrefix} - New request', logPrefix)
     const logEntryId = request.query.get('log_entry_id')
