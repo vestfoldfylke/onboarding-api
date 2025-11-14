@@ -2,7 +2,7 @@ const { app } = require('@azure/functions')
 const { getRandomValues, subtle } = require('crypto')
 const { getStateCache } = require('../state-cache')
 const { getIdPortenClient } = require('../idporten-client')
-const { logger } = require('@vtfk/logger')
+const { logger } = require('@vestfoldfylke/loglady')
 
 const stateCache = getStateCache()
 
@@ -16,16 +16,16 @@ const computeCodeChallengeFromVerifier = async (verifier) => {
 app.http('IdPortenLoginUrl', {
   methods: ['GET'],
   authLevel: 'function',
-  handler: async (request, context) => {
-    logger('info', ['New request for loginurl'], context)
+  handler: async (request, _) => {
+    logger.info('New request for loginUrl')
     const userType = request.query.get('user_type')
     if (!userType || !['ansatt', 'elev'].includes(userType)) {
-      logger('warn', ['Request does not contain query param user_type with "ansatt" eller "elev" :O'])
+      logger.warn('Request does not contain query param user_type with "ansatt" eller "elev" :O')
       return { status: 400, jsonBody: { message: 'Er du ikke ansatt eller elev??' } }
     }
     const action = request.query.get('action')
     if (!action || !['resetpassword', 'verifyuser'].includes(action)) {
-      logger('warn', ['Request does not contain query param action with "resetpassword" eller "verifyuser" :O'])
+      logger.warn('Request does not contain query param action with "resetpassword" eller "verifyuser" :O')
       return { status: 400, jsonBody: { message: 'Du har glemt å slenge med "action" i query params' } }
     }
     try {
@@ -48,10 +48,10 @@ app.http('IdPortenLoginUrl', {
 
       stateCache.set(state, { codeVerifier, nonce }, 1200)
 
-      logger('info', ['Successfully got id-porten auth url, responding to user'])
+      logger.info('Successfully got id-porten auth url, responding to user')
       return { status: 200, jsonBody: { loginUrl: authUrl } }
     } catch (error) {
-      logger('error', ['Failed when trying to get id-porten auth url', error.response?.data || error.stack || error.toString()])
+      logger.errorException(error, 'Failed when trying to get id-porten auth url. Error: {@Error}', error.response?.data || error.stack || error.toString())
       return { status: 500, jsonBody: { message: 'Failed when trying to get id-porten auth url', data: error.response?.data || error.stack || error.toString() } }
     }
   }

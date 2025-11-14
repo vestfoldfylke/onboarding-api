@@ -10,7 +10,7 @@ const getKrrPerson = async (ssn) => {
   /* Vi har visst lov å sende sms uansett vi */
   /*
   if (krrPerson.reservasjon.toUpperCase() !== 'NEI') {
-    throw new Error('Person is reserved agains digital communication')
+    throw new Error('Person is reserved against digital communication')
   }
   */
   if (krrPerson.status.toUpperCase() !== 'AKTIV') { // LEGGE INN SJEKK PÅ "status": "IKKE_REGISTRERT" ??? mon tro - det får man om den ikke finnes i KRR
