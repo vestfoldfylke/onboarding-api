@@ -141,4 +141,4 @@ src/functions/SetState.js
 src/functions/GetState.js
 
 # Rider shit
-/**/*.DotSettings.user
+**/*.DotSettings.user

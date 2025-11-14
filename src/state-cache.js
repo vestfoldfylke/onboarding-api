@@ -1,4 +1,4 @@
-const { logger } = require('@vtfk/logger')
+const { logger } = require('@vestfoldfylke/loglady')
 const NodeCache = require('node-cache')
 
 let stateCacheInstance = null
@@ -9,7 +9,7 @@ let stateCacheInstance = null
  */
 const getStateCache = () => {
   if (stateCacheInstance) return stateCacheInstance
-  logger('info', ['stateCache', 'No internal cache, creating new'])
+  logger.info('stateCache - No internal cache, creating new')
   stateCacheInstance = new NodeCache({ stdTTL: 0 })
   return stateCacheInstance
 }

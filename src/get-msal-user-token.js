@@ -1,5 +1,5 @@
 const msal = require('@azure/msal-node')
-const { logger } = require('@vtfk/logger')
+const { logger } = require('@vestfoldfylke/loglady')
 const NodeCache = require('node-cache')
 const { APPREG, AUTHENTICATION_ADMINISTRATOR } = require('../config')
 
@@ -17,11 +17,11 @@ const getMsalUserToken = async (config) => {
 
   const cachedToken = cache.get(cacheKey)
   if (!config.forceNew && cachedToken) {
-    // logger('info', ['getMsalUserToken', 'found valid token in cache, will use that instead of fetching new'])
+    // logger.info('found valid token in cache, will use that instead of fetching new')
     return cachedToken.substring(0, cachedToken.length - 2)
   }
 
-  logger('info', ['getMsalUserToken', 'no token in cache, fetching new from Microsoft'])
+  logger.info('no token in cache, fetching new from Microsoft')
   const authConfig = {
     clientId: APPREG.CLIENT_ID,
     authority: `https://login.microsoftonline.com/${APPREG.TENANT_ID}/`,
@@ -40,9 +40,9 @@ const getMsalUserToken = async (config) => {
   const token = await cca.acquireTokenByUsernamePassword(usernamePasswordRequest)
 
   const expires = Math.floor((token.expiresOn.getTime() - new Date()) / 1000)
-  logger('info', ['getMsalUserToken', `Got token from Microsoft, expires in ${expires} seconds.`])
+  logger.info('Got token from Microsoft, expires in {expires} seconds.', expires)
   cache.set(cacheKey, `${token.accessToken}==`, expires) // Haha, just to make the cached token not directly usable
-  logger('info', ['getMsalUserToken', 'Token stored in cache'])
+  logger.info('Token stored in cache')
 
   return token.accessToken
 }

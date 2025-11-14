@@ -3,9 +3,7 @@ const { GRAPH, AUTHENTICATION_ADMINISTRATOR } = require('../config')
 const axios = require('axios')
 const { getMsalUserToken } = require('./get-msal-user-token')
 const { generateFriendlyPassword } = require('./generate-password')
-const { logger } = require('@vtfk/logger')
-
-const aninopel = 'hahaha, nørd'
+const { logger } = require('@vestfoldfylke/loglady')
 
 const sleep = (ms) => {
   return new Promise((resolve) => {
@@ -30,8 +28,9 @@ const resetPassword = async (userId) => {
       return { newPassword: passwordBody.newPassword }
     }
     if (!['notStarted', 'running'].includes(data.status)) {
-      logger('error', ['Failed when resetting password', data])
-      throw new Error(data.statusDetail || 'Feilet ved resetting av passord')
+      const errorDetail = data.statusDetail || 'Feilet ved resetting av passord'
+      logger.error('Failed when resetting password: {@Status} - {@Error}', data.status, errorDetail)
+      throw new Error(errorDetail)
     }
   }
   throw new Error('Brukte for lang tid på resetting av passord, prøv igjen senere')
@@ -123,7 +122,7 @@ const userSelect = 'id,accountEnabled,displayName,userPrincipalName,jobTitle,sta
  */
 const getAllEmployees = async () => {
   const accessToken = await getMsalToken({ scope: GRAPH.SCOPE })
-  let url = `${GRAPH.URL}/v1.0/users/?$select=${userSelect}&$filter=onPremisesExtensionAttributes/extensionAttribute9 ne null and endsWith(userPrincipalName, '${GRAPH.EMPLOYEE_UPN_SUFFIX}')&$count=true&$top=999` // må ha med et filter som sier at du er vanlig ansat, kan bruke onPremisesDistinguishedName contains VFYLKE, om endswith suffix ikke fungerer bra nok
+  let url = `${GRAPH.URL}/v1.0/users/?$select=${userSelect}&$filter=onPremisesExtensionAttributes/extensionAttribute9 ne null and endsWith(userPrincipalName, '${GRAPH.EMPLOYEE_UPN_SUFFIX}')&$count=true&$top=999` // må ha med et filter som sier at du er vanlig ansat, kan bruke onPremisesDistinguishedName contains VFYLKE, om endsWith suffix ikke fungerer bra nok
   let finished = false
   const result = {
     count: 0,
@@ -132,7 +131,7 @@ const getAllEmployees = async () => {
   let page = 0
   while (!finished) {
     const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${accessToken}`, ConsistencyLevel: 'eventual' } })
-    logger('info', ['getAllEmployees', `Got ${data.value.length} elements from page ${page}, will check for more`])
+    logger.info('Got {ElementLength} elements from page {Page}, will check for more', data.value.length, page)
     finished = data['@odata.nextLink'] === undefined
     url = data['@odata.nextLink']
     result.value = result.value.concat(data.value)
@@ -169,7 +168,7 @@ const getAllStudents = async () => {
   let page = 0
   while (!finished) {
     const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${accessToken}`, ConsistencyLevel: 'eventual' } })
-    logger('info', ['getAllStudents', `Got ${data.value.length} elements from page ${page}, will check for more`])
+    logger.info('Got {ElementLength} elements from page {Page}, will check for more', data.value.length, page)
     finished = data['@odata.nextLink'] === undefined
     url = data['@odata.nextLink']
     result.value = result.value.concat(data.value)
