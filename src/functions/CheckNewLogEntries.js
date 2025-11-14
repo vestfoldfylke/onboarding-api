@@ -4,12 +4,11 @@ const { logger } = require('@vestfoldfylke/loglady')
 
 app.timer('CheckNewLogEntries', {
   schedule: '*/20 * * * *', // Hvert 20 minutt
-  handler: async (myTimer, context) => {
+  handler: async (myTimer, _) => {
     logger.info('CheckNewLogEntries - new run')
     try {
-      // TODO: Huh? Jørgen. Why get and log result when method is void?
-      const updateResult = await checkNewLogEntries()
-      logger.info('CheckNewLogEntries - finished running - result - {UpdateResult}', updateResult)
+      await checkNewLogEntries()
+      logger.info('CheckNewLogEntries - finished running')
     } catch (error) {
       logger.errorException(error, 'CheckNewLogEntries - failed when updating user collection: {@Error}', error.response?.data || error.stack || error.toString())
     }
