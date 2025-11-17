@@ -5,7 +5,8 @@ const sendSms = async (phoneNumber, message) => {
   const payload = {
     receivers: [phoneNumber],
     message,
-    sender: SMS.SENDER
+    sender: SMS.SENDER,
+    referenceId: SMS.REFERENCE_ID
   }
   const { data } = await axios.post(`${SMS.URL}/SendSMS`, payload, { headers: { 'x-functions-key': SMS.KEY } })
   return data

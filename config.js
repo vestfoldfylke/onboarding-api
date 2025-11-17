@@ -58,7 +58,8 @@ module.exports = {
   SMS: {
     URL: process.env.SMS_URL,
     KEY: process.env.SMS_KEY,
-    SENDER: process.env.SMS_SENDER
+    SENDER: process.env.SMS_SENDER,
+    REFERENCE_ID: process.env.SMS_REFERENCE_ID || 'onboarding-api'
   },
   STATISTICS: {
     URL: process.env.STATISTICS_URL,
