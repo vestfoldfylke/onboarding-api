@@ -108,14 +108,18 @@ const updateUsers = async () => {
 
   // Then rename current to previous if exist
   {
-    const renameResult = collectionNames.includes(MONGODB.USERS_COLLECTION) ? await usersCollection.rename(`${MONGODB.USERS_COLLECTION}-previous`) : 'users collection did not exist, could not rename'
-    logger.info('Then we rename current users-collection to previous - Result: {@RenameResult}', renameResult)
+    if (collectionNames.includes(MONGODB.USERS_COLLECTION)) {
+      logger.info('Current users-collection exists, will rename to previous')
+      await usersCollection.rename(`${MONGODB.USERS_COLLECTION}-previous`)
+      logger.info('Renamed current users-collection to previous')
+    }
   }
 
   // Then rename temp to current
   {
-    const renameResult = await tempCollection.rename(MONGODB.USERS_COLLECTION)
-    logger.info('Then we rename temp users-collection with the new data to current - Result: {RenameResult}', renameResult)
+    logger.info('Then we rename temp users-collection with the new data to current')
+    await tempCollection.rename(MONGODB.USERS_COLLECTION)
+    logger.info('Renamed temp users-collection to current')
   }
 
   // Then create index on fields we need
