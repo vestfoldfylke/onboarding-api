@@ -10,7 +10,8 @@ app.timer('UpdateUserCollection', {
       const updateResult = await updateUsers()
       logger.info('UpdateUserCollection - finished running - UpdateResult: {UpdateResult}', updateResult)
     } catch (error) {
-      logger.errorException(error, 'UpdateUserCollection - failed when updating user collection. Error: {@Error}', error.response?.data || error.stack || error.toString())
+      logger.error('UpdateUserCollection - failed when updating user collection. Error: {@Error}', error.response?.data || error.stack || error.toString())
     }
   }
 })
+
