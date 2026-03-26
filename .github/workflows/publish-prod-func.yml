@@ -11,27 +11,40 @@ on:
 
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
-  NODE_VERSION: '20.x' # set this to the node version to use (supports 8.x, 10.x, 12.x)
+  NODE_VERSION: '22.x' # set this to the node version to use (supports 8.x, 10.x, 12.x)
 
 jobs:
+  call-security:
+    uses: vestfoldfylke/shared/.github/workflows/npm-security.yml@main
+    with:
+      audit_severity: "high" # required to be set. Can be one of (null, info, low, moderate, high, critical, none)
+      node_version: 22 # this one is optional and defaults to 22 if not set
+  
   build-and-deploy:
     runs-on: self-hosted
     steps:
       - name: 'Checkout GitHub Action'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Setup Node ${{ env.NODE_VERSION }} Environment
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: 'Resolve Project Dependencies Using Npm'
+      - name: "Resolve Project Dependencies Using Npm, Build and Test"
         shell: bash
         run: |
           pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
-          npm install
+          npm ci
           npm run build --if-present
           npm run test --if-present
+          popd
+      
+      - name: "Resolve Production Project Dependencies Using Npm"
+        shell: bash
+        run: |
+          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+          npm ci --omit=dev
           popd
 
       - name: 'Run Azure Functions Action'
