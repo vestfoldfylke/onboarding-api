@@ -1,4 +1,4 @@
-const { getAccessToken } = require('@vestfoldfylke/msal-token')
+const { ConfidentialClientApplication } = require('@azure/msal-node')
 const { logger } = require('@vestfoldfylke/loglady')
 const NodeCache = require('node-cache')
 const { APPREG } = require('../config')
@@ -21,21 +21,37 @@ const getMsalToken = async (config) => {
     return cachedToken.substring(0, cachedToken.length - 2)
   }
 
-  logger.info('getMsalToken - no token in cache, fetching new from Microsoft')
-  const clientConfig = {
-    clientId: APPREG.CLIENT_ID,
-    tenantId: APPREG.TENANT_ID,
-    clientSecret: APPREG.CLIENT_SECRET,
-    scopes: [config.scope]
+  if (!APPREG.CLIENT_ID || !APPREG.CLIENT_SECRET || !APPREG.TENANT_ID) {
+    throw new Error('Missing required environment variables for Microsoft authentication')
   }
 
-  const token = await getAccessToken(clientConfig)
-  const expires = Math.floor((token.expiresOn.getTime() - new Date()) / 1000)
+  logger.info('getMsalToken - no token in cache, fetching new from Microsoft')
+  const confidentialClient = new ConfidentialClientApplication({
+    auth: {
+      clientId: APPREG.CLIENT_ID,
+      authority: `https://login.microsoftonline.com/${APPREG.TENANT_ID}/`,
+      clientSecret: APPREG.CLIENT_SECRET
+    }
+  })
+
+  const tokenResponse = await confidentialClient.acquireTokenByClientCredential({
+    scopes: [config.scope]
+  })
+
+  if (!tokenResponse || !tokenResponse.accessToken) {
+    throw new Error('Failed to acquire token from Microsoft')
+  }
+
+  if (!tokenResponse.expiresOn) {
+    throw new Error('Token response missing expiresOn property')
+  }
+
+  const expires = Math.floor((tokenResponse.expiresOn.getTime() - Date.now()) / 1000)
   logger.info('getMsalToken - Got token from Microsoft, expires in {Expires} seconds.', expires)
-  cache.set(cacheKey, `${token.accessToken}==`, expires) // Haha, just to make the cached token not directly usable
+  cache.set(cacheKey, `${tokenResponse.accessToken}==`, expires) // Haha, just to make the cached token not directly usable
   logger.info('getMsalToken - Token stored in cache')
 
-  return token.accessToken
+  return tokenResponse.accessToken
 }
 
 module.exports = { getMsalToken }
