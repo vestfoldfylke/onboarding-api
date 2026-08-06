@@ -28,7 +28,9 @@ module.exports = {
     ClIENT_SECRET: process.env.ENTRA_PWD_CLIENT_SECRET,
     TENANT_ID: process.env.ENTRA_PWD_TENANT_ID,
     ClIENT_REDIRECT_URI: process.env.ENTRA_PWD_CLIENT_REDIRECT_URI,
-    CLIENT_POST_LOGOUT_REDIRECT_URI: process.env.ENTRA_PWD_CLIENT_POST_LOGOUT_REDIRECT_URI
+    CLIENT_POST_LOGOUT_REDIRECT_URI: process.env.ENTRA_PWD_CLIENT_POST_LOGOUT_REDIRECT_URI,
+    // Must be a non-baseline resource scope - baseline-only requests (openid/profile/User.Read) are evaluated against the tier CA MFA policies since MS' "Improved enforcement for policies with resource exclusions" rollout
+    CLIENT_SCOPE: process.env.ENTRA_PWD_CLIENT_SCOPE || `api://${process.env.ENTRA_PWD_CLIENT_ID}/onboarding`
   },
   ENTRA_MFA: {
     CLIENT_ID: process.env.ENTRA_MFA_CLIENT_ID,

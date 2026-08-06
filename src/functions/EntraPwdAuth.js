@@ -17,7 +17,7 @@ app.http('EntraPwdAuth', {
     // Validate request body
     const { code, state } = await request.json()
     if (!(code && state)) {
-      logger.warn(`{LogPrefix} - Someone called EntraPwdAuth without code and state in body - is someone trying to hack us?`. logPrefix)
+      logger.warn(`{LogPrefix} - Someone called EntraPwdAuth without code and state in body - is someone trying to hack us?`, logPrefix)
       return { status: 400, jsonBody: { message: 'Du har glemt state og code i body da' } }
     }
 
@@ -46,7 +46,7 @@ app.http('EntraPwdAuth', {
 
       const tokenResponse = await entraClient.acquireTokenByCode({
         redirectUri: ENTRA_PWD.ClIENT_REDIRECT_URI,
-        scopes: ['User.Read'],
+        scopes: [ENTRA_PWD.CLIENT_SCOPE],
         code,
         codeVerifier: checks.verifier
       })
