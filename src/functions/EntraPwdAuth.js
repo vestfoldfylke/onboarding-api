@@ -46,7 +46,7 @@ app.http('EntraPwdAuth', {
 
       const tokenResponse = await entraClient.acquireTokenByCode({
         redirectUri: ENTRA_PWD.ClIENT_REDIRECT_URI,
-        scopes: ['User.Read'],
+        scopes: [ENTRA_PWD.CLIENT_SCOPE],
         code,
         codeVerifier: checks.verifier
       })

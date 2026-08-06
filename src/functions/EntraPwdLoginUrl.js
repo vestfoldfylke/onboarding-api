@@ -31,6 +31,7 @@ app.http('EntraPwdLoginUrl', {
       const authUrl = await entraClient.getAuthCodeUrl({
         state,
         redirectUri: ENTRA_PWD.ClIENT_REDIRECT_URI,
+        scopes: [ENTRA_PWD.CLIENT_SCOPE],
         codeChallenge: challenge,
         codeChallengeMethod: 'S256',
         prompt: 'login',

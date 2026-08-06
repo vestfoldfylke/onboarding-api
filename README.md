@@ -43,6 +43,10 @@ Det må settes opp en app registration + enterprise application i EntraID (Azure
   - User.Read (delegated)
 - Redirect URIs
   - https:/{ditt-domene}/entrapwdcallback (web)
+- Expose an API
+  - Application ID URI: `api://{client-id for denne app registration}`
+  - Scope: `onboarding` (Admins only, State: Enabled) - f.eks. display name "Onboarding password change verification"
+  - **Hvorfor:** api-et løser inn auth-koden med dette scopet i stedet for bare baseline-scopes (openid/profile/User.Read). Etter Microsofts "Improved enforcement for policies with resource exclusions" (MC1223829/MC1400649, juni 2026) evalueres baseline-only token-forespørsler mot All-resources CA-policyer - og nye brukere uten registrert MFA-metode blir da blokkert av MFA-krav midt i passordbyttet. Med appens eget scope evalueres forespørselen mot denne appen som ressurs, som CA-policyene dine må ekskludere. Ingen consent-grant trengs (klient og ressurs er samme app)
 Ellers styres denne med de policyene og brukerne du selv ønsker (hvem kan logge på, CA-policy osv)
 
 ### EntraID statistics app registration
@@ -116,6 +120,7 @@ Det må settes opp en Azure function resource i Azure. Kjør på en App service 
   "ENTRA_PWD_TENANT_ID": "home tenant id",
   "ENTRA_PWD_CLIENT_REDIRECT_URI": "https:/{ditt-domene}/entrapwdcallback",
   "ENTRA_PWD_CLIENT_POST_LOGOUT_REDIRECT_URI": "https:/{ditt-domene}",
+  "ENTRA_PWD_CLIENT_SCOPE": "api://{ENTRA_PWD_CLIENT_ID}/onboarding (valgfri - default er nettopp denne verdien)",
   "ENTRA_MFA_CLIENT_ID": "client id for the mfa/verify app registration",
   "ENTRA_MFA_CLIENT_SECRET": "client secret for the mfa/verify app registration",
   "ENTRA_MFA_TENANT_ID": "home tenant id",
