@@ -17,7 +17,7 @@ app.http('EntraPwdAuth', {
     // Validate request body
     const { code, state } = await request.json()
     if (!(code && state)) {
-      logger.warn(`{LogPrefix} - Someone called EntraPwdAuth without code and state in body - is someone trying to hack us?`. logPrefix)
+      logger.warn(`{LogPrefix} - Someone called EntraPwdAuth without code and state in body - is someone trying to hack us?`, logPrefix)
       return { status: 400, jsonBody: { message: 'Du har glemt state og code i body da' } }
     }
 
