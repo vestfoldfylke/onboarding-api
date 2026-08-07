@@ -245,17 +245,18 @@ app.http('ResetPassword', {
     logger.info('{LogPrefix} - Entra ID is okey dokey, trying to fetch user from KRR', logPrefix)
     // Get user from KRR (kontakt og reservasjonsregisteret)
     try {
-      const krrPerson = await getKrrPerson(user.ssn)
-      if (!krrPerson.kontaktinformasjon?.mobiltelefonnummer) {
-        const { status, jsonBody } = await handleError({ error: 'Found person in KRR, but person has not registered any phone number :( cannot help it', jobName: 'entraId', logEntry, logEntryId, message: 'Fant ikke telefonnummeret ditt i kontakt- og reservasjonsregisteret, så vi får ikke sendt noe sms :( Ta kontakt med servicedesk.', status: 404, logPrefix })
-        return { status, jsonBody }
-      }
       if (DEMO_MODE.ENABLED && DEMO_USER_OVERRIDE?.DEMO_PHONE_NUMBER) {
         logger.warn('{LogPrefix} - DEMO_MODE is enabled, and DEMO_USER_OVERRIDE is present on idPorten pid, setting user.phoneNumber to DEMO_USER_OVERRIDE.DEMO_PHONE_NUMBER', logPrefix)
         user.phoneNumber = DEMO_USER_OVERRIDE?.DEMO_PHONE_NUMBER
       } else {
+        const krrPerson = await getKrrPerson(user.ssn)
+        if (!krrPerson.kontaktinformasjon?.mobiltelefonnummer) {
+          const { status, jsonBody } = await handleError({ error: 'Found person in KRR, but person has not registered any phone number :( cannot help it', jobName: 'entraId', logEntry, logEntryId, message: 'Fant ikke telefonnummeret ditt i kontakt- og reservasjonsregisteret, så vi får ikke sendt noe sms :( Ta kontakt med servicedesk.', status: 404, logPrefix })
+          return { status, jsonBody }
+        }
         user.phoneNumber = krrPerson.kontaktinformasjon.mobiltelefonnummer
       }
+
       logEntry.krr = {
         phoneNumber: user.phoneNumber,
         result: {
