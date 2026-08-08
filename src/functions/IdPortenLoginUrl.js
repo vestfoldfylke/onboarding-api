@@ -24,8 +24,8 @@ app.http('IdPortenLoginUrl', {
       return { status: 400, jsonBody: { message: 'Er du ikke ansatt eller elev??' } }
     }
     const action = request.query.get('action')
-    if (!action || !['resetpassword', 'verifyuser'].includes(action)) {
-      logger.warn('Request does not contain query param action with "resetpassword" eller "verifyuser" :O')
+    if (!action || !['resetpassword', 'verifyuser', 'passkey'].includes(action)) {
+      logger.warn('Request does not contain query param action with "resetpassword", "verifyuser" eller "passkey" :O')
       return { status: 400, jsonBody: { message: 'Du har glemt å slenge med "action" i query params' } }
     }
     try {

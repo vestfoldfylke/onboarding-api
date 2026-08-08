@@ -85,11 +85,17 @@ Det må settes opp en app registration + enterprise application i EntraID (Azure
 - API permissions
   - CustomSecAttributeAssignment.Read.All (leser fnr for elever) (Application)
   - User.Read.All (leser fnr for ansatte) (Application)
-  - UserAuthenticationMethod.Read.All (sjekker mfa og passord) (Application)
   - UserAuthenticationMethod.ReadWrite.All (Delegated)
+  - UserAuthenticationMethod.ReadWrite.All (Application) (sjekker mfa og passord, samt om bruker har registrert passkey + utstedelse av Temporary Access Pass i passkey-onboarding)
 
 Det må settes opp en service-bruker med "Assigned role"="Authentication administrator", denne må også ha tilgang på EntraID onboarding-api enterprise-application
 - ResetPassword i graph støtter ikke application permission, og PATCH authenticationMethods/passwordProfile støtter ikke AD-writeback... Derav servicebruker for ResetPassword i Microsoft Graph 
+
+#### Temporary Access Pass (passkey-onboarding)
+Utstedelse av Temporary Access Pass (TAP) støtter derimot application permission, så passkey-flyten bruker app-token og trenger ikke service-brukeren.
+- Temporary Access Pass må være aktivert som authentication method i tenanten for de brukerne som skal kunne onboardes med passkey (Entra > Authentication methods > Temporary Access Pass)
+- `TAP_LIFETIME_MINUTES` må ligge innenfor tenantens TAP-policy (typisk 10-480 minutter), ellers avvises utstedelsen av Graph
+- Med application permission kan authentication methods kun administreres for brukere uten privilegerte Entra-roller. Elever og vanlige ansatte er greit, men en bruker med f.eks. admin-rolle vil feile
 
 ### MongoDB
 Det må settes opp en mongoDB-database, med collection "user-log"
@@ -134,9 +140,11 @@ Det må settes opp en Azure function resource i Azure. Kjør på en App service 
   "GRAPH_SSN_EXTENSION_ATTRIBUTE": "name of extension attribute for employee ssn",
   "GRAPH_EMPLOYEE_UPN_SUFFIX": "employee upn suffix (including '@')",
   "GRAPH_STUDENT_UPN_SUFFIX": "student upn suffix (including '@')",
+  "TAP_LIFETIME_MINUTES": "60", // Optional - lifetime in minutes for Temporary Access Pass in passkey onboarding. Default is 60. Must be within the tenant TAP policy
   "DEMO_MODE_ENABLED": "true/false - if demo mode is enabled",
   "DEMO_MODE_GLOBAL_MOCK_RESET_PASSWORD": "true/false - if true, password is not reset, mock-password is sent to user", // Requires DEMO_MODE_ENABLED="true"
-  "DEMO_MODE_DEMO_USERS": "{\"id-porten ssn that triggers override\":{\"DEMO_SSN\":\"ssn that is used for lookup in graph\",\"DEMO_UPN\":\"overrides upn found in graph\",\"DEMO_PHONE_NUMBER\":\"overrides phonenumber found in KRR\",\"MOCK_RESET_PASSWORD\":\"true/false\"}}", // Requires DEMO_MODE_ENABLED="true"
+  "DEMO_MODE_GLOBAL_MOCK_PASSKEY_ONBOARDING": "true/false - if true, no TAP is created in graph, a mock-value is returned, and the passkey check always returns registered", // Requires DEMO_MODE_ENABLED="true". Only applies to users WITHOUT an entry in DEMO_MODE_DEMO_USERS
+  "DEMO_MODE_DEMO_USERS": "{\"id-porten ssn that triggers override\":{\"DEMO_SSN\":\"ssn that is used for lookup in graph\",\"DEMO_UPN\":\"overrides upn found in graph\",\"DEMO_PHONE_NUMBER\":\"overrides phonenumber found in KRR\",\"MOCK_RESET_PASSWORD\":\"true/false\",\"MOCK_TAP\":\"true/false\",\"MOCK_PASSKEY_REGISTERED\":\"true/false\"}}", // Requires DEMO_MODE_ENABLED="true"
   "KRR_URL": "your krr-api url",
   "KRR_KEY": "your krr-api key",
   "SMS_URL": "your sms-api url",
@@ -188,7 +196,7 @@ For teknisk dokumentasjon, kikk på koden da...
 ### /IdPortenLoginUrl
 - Genererer en login-url for id-porten og returnerer denne
   - Krever query-param user_type for å skille ansatte og elever
-  - Krever query-param action for å skille "resetpassword" og "verifyuser"
+  - Krever query-param action for å skille "resetpassword", "verifyuser" og "passkey"
   - prompt: "login", brukere tvinges til å aktivt logges på
 
 ### /IdPortenLogoutUrl
@@ -212,6 +220,23 @@ For teknisk dokumentasjon, kikk på koden da...
 - Henter bruker fra EntraID basert på pid fra ID-porten-innlogging
 - Lagrer data i db-oppføring
 - Returnerer EntraID-navn, EntraID-brukernavn, samt id for db-oppføring
+
+### /StartPasskeyOnboarding
+- Tar i mot state, iss, og code fra en fullført ID-porten pålogging i brukers browser (action "passkey")
+- Oppretter db-oppføring for requesten (action "PasskeyOnboarding", method "passkey")
+- Logger inn bruker i ID-porten (henter id-token)
+- Henter bruker fra EntraID basert på pid fra ID-porten-innlogging
+- Utsteder en engangs Temporary Access Pass (TAP) for EntraID-brukeren
+- Lagrer data i db-oppføring - kun tidspunkt for utstedelse og utløp, ALDRI selve TAP-verdien
+- Returnerer EntraID-navn, EntraID-brukernavn, TAP-verdien (for visning på skjerm), utløpstidspunkt, samt id for db-oppføring
+- Passord settes aldri og vises aldri i denne flyten
+
+### /CompletePasskeyOnboarding
+- Tar i mot id for db-oppføring fra en påbegynt passkey-onboarding
+- Henter db-oppføring, og sjekker at flyten faktisk ble startet (og ikke er utløpt)
+- Sjekker i EntraID om brukeren har registrert en passkey (filtrerer på @odata.type, så både synkroniserte og device-bound passkeys treffer)
+- Om registrert: oppdaterer db-oppføring med fullført, timestamp osv, og returnerer completed = true
+- Om ikke registrert: returnerer completed = false, slik at frontend kan vise veiledning og la brukeren prøve igjen
 
 ### /EntraPwdLoginUrl
 - Genrerer en login-url for EntraID passordbytte enterprise application, og returnerer denne
@@ -263,12 +288,16 @@ const mockRules = {
     DEMO_SSN: '12345678910', // Optional - else uses pid from idporten
     DEMO_UPN: 'demomann@demo.no', // Optional - else uses upn connected to ssn
     DEMO_PHONE_NUMBER: '+4712345678', // Optional - else uses phonenumber from krr connected to 
+    MOCK_TAP: 'true', // Optional - else actually creates a REAL Temporary Access Pass in graph for DEMO_UPN
+    MOCK_PASSKEY_REGISTERED: 'false', // Optional - else actually checks graph. 'false' lets you test the "not finished yet" path in the frontend
     MOCK_RESET_PASSWORD: 'true' // Optional - else actually resets password
   },
   '12345678911': { // Add as many as you like
     DEMO_SSN: '12345678912',
     DEMO_UPN: 'jorthe@gothtr.no',
     DEMO_PHONE_NUMBER: '+4787654321',
+    MOCK_TAP: 'false',
+    MOCK_PASSKEY_REGISTERED: 'true',
     MOCK_RESET_PASSWORD: 'false'
   }
 }
@@ -279,6 +308,8 @@ console.log(escaped)
 
 // Add rule to DEMO_MODE_DEMO_USERS env variable, and set DEMO_MODE_ENABLED to "true" in env variables
 ```
+
+**NB om mocking for demo-brukere:** en demo-bruker som har en regel i DEMO_MODE_DEMO_USERS bruker ALDRI de globale mock-flaggene (DEMO_MODE_GLOBAL_MOCK_RESET_PASSWORD / DEMO_MODE_GLOBAL_MOCK_PASSKEY_ONBOARDING) - de gjelder kun brukere uten egen regel. Utelater du MOCK_TAP i regelen, blir det derfor utstedt en ekte Temporary Access Pass i graph for den DEMO_UPN-en du har satt opp (samme oppførsel som MOCK_RESET_PASSWORD har for passordreset). Sett flaggene eksplisitt på hver demo-bruker.
 
 ## Local development
 - Klon ned røkla, eller fork og klon
@@ -314,9 +345,11 @@ console.log(escaped)
     "GRAPH_SSN_EXTENSION_ATTRIBUTE": "",
     "GRAPH_EMPLOYEE_UPN_SUFFIX": "@domain.com",
     "GRAPH_STUDENT_UPN_SUFFIX": "@school.domain.com",
+    "TAP_LIFETIME_MINUTES": "60",
     "DEMO_MODE_ENABLED": "true",
+    "DEMO_MODE_GLOBAL_MOCK_PASSKEY_ONBOARDING": "true",
     "DEMO_MODE_GLOBAL_MOCK_RESET_PASSWORD": "true",
-    "DEMO_MODE_DEMO_USERS": "{\"12345678910\":{\"DEMO_SSN\":\"10987654321\",\"DEMO_UPN\":\"per.son@domain.com\",\"DEMO_PHONE_NUMBER\":\"+4712345678\",\"MOCK_RESET_PASSWORD\":\"false\"}",
+    "DEMO_MODE_DEMO_USERS": "{\"12345678910\":{\"DEMO_SSN\":\"10987654321\",\"DEMO_UPN\":\"per.son@domain.com\",\"DEMO_PHONE_NUMBER\":\"+4712345678\",\"MOCK_RESET_PASSWORD\":\"false\",\"MOCK_TAP\":\"true\",\"MOCK_PASSKEY_REGISTERED\":\"false\"}}",
     "KRR_URL": "",
     "KRR_KEY": "",
     "SMS_URL": "",

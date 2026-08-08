@@ -25,6 +25,8 @@ const { getMongoClient, closeMongoClient } = require('./mongo-client')
  * @property {Object} [resetPassword]
  * @property {Object} [sms]
  * @property {Object} [passwordChanged]
+ * @property {string} [method]
+ * @property {Object} [passkeyOnboarding]
  */
 
 /**
@@ -32,7 +34,7 @@ const { getMongoClient, closeMongoClient } = require('./mongo-client')
  * @param {*} context
  * @param {*} request
  * @param {ansatt | elev} userType
- * @param {("ResetPassword"|"VerifyUser")} action
+ * @param {("ResetPassword"|"VerifyUser"|"PasskeyOnboarding")} action
  * @returns {LogEntry} logEntry
  */
 
@@ -99,6 +101,18 @@ const createLogEntry = (context, request, userType, action) => {
     logEntry.passwordChanged = {
       successful: false,
       timestamp: null
+    }
+  }
+  if (action === 'PasskeyOnboarding') {
+    logEntry.method = 'passkey'
+    logEntry.passkeyOnboarding = {
+      tapIssuedAt: null,
+      tapExpiresAt: null,
+      passkeyRegisteredAt: null,
+      result: {
+        status: null,
+        message: null
+      }
     }
   }
 

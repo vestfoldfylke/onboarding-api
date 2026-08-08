@@ -67,9 +67,13 @@ module.exports = {
     URL: process.env.STATISTICS_URL,
     KEY: process.env.STATISTICS_KEY
   },
+  TAP: {
+    LIFETIME_MINUTES: Number(process.env.TAP_LIFETIME_MINUTES) || 60
+  },
   DEMO_MODE: {
     ENABLED: (process.env.DEMO_MODE_ENABLED && process.env.DEMO_MODE_ENABLED === 'true') || false,
     GLOBAL_MOCK_RESET_PASSWORD: (process.env.DEMO_MODE_GLOBAL_MOCK_RESET_PASSWORD && process.env.DEMO_MODE_GLOBAL_MOCK_RESET_PASSWORD === 'true') || false,
+    GLOBAL_MOCK_PASSKEY_ONBOARDING: (process.env.DEMO_MODE_GLOBAL_MOCK_PASSKEY_ONBOARDING && process.env.DEMO_MODE_GLOBAL_MOCK_PASSKEY_ONBOARDING === 'true') || false,
     DEMO_USERS: (process.env.DEMO_MODE_DEMO_USERS && JSON.parse(process.env.DEMO_MODE_DEMO_USERS)) || false
   },
   BAD_WORDS: (process.env.BAD_WORDS && process.env.BAD_WORDS.split(',')) || [],
